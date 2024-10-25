@@ -41,12 +41,11 @@ jobs:
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  # Optional
         run: terraform apply -auto-approve
 
-      - name: Install Prowler and Prowler Dashboard
+      - name: Install Prowler
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip
           pip3 install prowler
-          pip3 install prowler-dashboard
 
       - name: Run Prowler
         env:
@@ -55,3 +54,7 @@ jobs:
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  
         run: |
           prowler -q
+
+      - name: Start Prowler Dashboard
+        run: |
+          prowler dashboard
