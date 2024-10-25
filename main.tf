@@ -54,8 +54,8 @@ resource "aws_route_table_association" "my_route_table_association" {
 
 # Create an EC2 instance in the new subnet
 resource "aws_instance" "my_ec2" {
-  ami           = "ami-02db68a01488594c5"  
-  instance_type = "t2.micro"
+  ami           = "ami-089146c5626baa6bf"  
+  instance_type = "t3.micro"
   subnet_id     = aws_subnet.my_subnet.id
 
   tags = {
