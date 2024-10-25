@@ -25,32 +25,28 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  # Optional
-        run: |
-          terraform init
+        run: terraform init
 
       - name: Terraform Plan
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  # Optional
-        run: |
-          terraform plan
+        run: terraform plan
 
       - name: Terraform Apply
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  # Optional
-        run: |
-          terraform apply -auto-approve
+        run: terraform apply -auto-approve
 
-      - name: Checkout Prowler
-        run: git clone https://github.com/salesforce/prowler.git
-
-      - name: Install Dependencies
+      - name: Install Prowler and Prowler Dashboard
         run: |
           sudo apt-get update
-          sudo apt-get install -y awscli jq
+          sudo apt-get install -y python3-pip
+          pip3 install prowler
+          pip3 install prowler-dashboard
 
       - name: Run Prowler
         env:
@@ -58,5 +54,4 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  
         run: |
-          cd prowler
-          ./prowler -q
+          prowler -q
