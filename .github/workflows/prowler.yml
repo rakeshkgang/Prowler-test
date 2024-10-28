@@ -19,23 +19,22 @@ jobs:
           git clone https://github.com/prowler-cloud/prowler.git
           cd prowler
 
-      - name: List Prowler Directory
+      - name: List All Files
         run: |
           cd prowler
-          ls -lR  # List all files recursively to see the structure
+          find . -print  # This will print all files and directories in the prowler folder
 
-      - name: Identify Executable
+      - name: List Detailed Structure
         run: |
           cd prowler
-          # Find the correct executable file by listing files again
-          find . -type f -exec ls -l {} \;  # List all files with details
+          ls -lR  # List all files and directories recursively with details
 
       - name: Run Prowler Scan
         id: prowler
         run: |
           cd prowler
-          # Replace 'check_prowler.sh' with the actual name found in the previous step
-          chmod +x ./check_prowler.sh  # Make sure this matches the actual script name
+          # Make sure to replace 'check_prowler.sh' with the actual script found in previous steps
+          chmod +x ./check_prowler.sh  # Adjust this line based on the actual executable name
           ./check_prowler.sh -c check135 > report.txt  # Adjust if necessary
           echo "Scan complete, generating report."
 
