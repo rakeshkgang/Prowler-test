@@ -19,12 +19,17 @@ jobs:
           git clone https://github.com/prowler-cloud/prowler.git
           cd prowler
 
+      - name: List Prowler Directory
+        run: |
+          cd prowler
+          ls -l  # This will show the files in the directory to confirm structure
+
       - name: Run Prowler Scan
         id: prowler
         run: |
           cd prowler
-          chmod +x prowler/check_prowler.sh  # Make the Prowler script executable
-          ./check_prowler.sh -c check135 > report.txt  # Use the correct script name
+          chmod +x ./check_prowler.sh  # Make the main Prowler script executable
+          ./check_prowler.sh -c check135 > report.txt  # Run the scan
           echo "Scan complete, generating report."
 
       - name: Send Report to Slack
