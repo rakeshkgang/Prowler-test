@@ -16,14 +16,14 @@ jobs:
 
       - name: Install Poetry
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -  # Install Poetry
+          curl -sSL https://install.python-poetry.org | python3 -
           echo "$HOME/.local/bin" >> $GITHUB_PATH  # Add Poetry to PATH
 
       - name: Install Prowler and Dependencies
         run: |
           git clone https://github.com/prowler-cloud/prowler.git
           cd prowler
-          poetry install  # Install Prowler's dependencies using Poetry
+          poetry install --no-root  # Install dependencies without installing the project itself
 
       - name: List Prowler Directory
         run: |
@@ -39,7 +39,7 @@ jobs:
         run: |
           cd prowler
           chmod +x ./prowler.py  # Make the Prowler script executable
-          ./prowler.py -c check135 > report.txt  # Run the scan
+          python3 ./prowler.py -c check135 > report.txt  # Run the scan using Python
           echo "Scan complete, generating report."
 
       - name: Send Report to Slack
