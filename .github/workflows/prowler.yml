@@ -14,20 +14,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Install Prowler
+      - name: Install Dependencies
         run: |
-          git clone https://github.com/prowler-cloud/prowler.git
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip  # Install Python and pip
           cd prowler
-
-      - name: List Prowler Directory
-        run: |
-          cd prowler
-          ls -lR  # List all files and directories recursively
-
-      - name: Identify Executable Files
-        run: |
-          cd prowler
-          find . -type f -executable  # Find all executable files
+          pip3 install -r requirements.txt  # Install Prowler's dependencies
 
       - name: Run Prowler Scan
         run: |
