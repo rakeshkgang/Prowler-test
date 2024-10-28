@@ -1,66 +1,35 @@
-name: Terraform and Prowler CI
+name: Prowler Security Scan
 
 on:
   push:
     branches:
-      - main
+      - main 
+  workflow_dispatch:
 
 jobs:
-  terraform:
+  prowler:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          terraform_version: 1.0.0
-
-      - name: Set AWS Credentials
-        run: echo "AWS credentials are set."
-
-      - name: Terraform Init
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  
-        run: terraform init
-
-      - name: Terraform Plan
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  
-        run: terraform plan
-
-      - name: Terraform Apply
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  
-        run: terraform apply -auto-approve
-
-      - name: Set up Python Environment
+      - name: Install Prowler
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-pip
-          pip3 install --upgrade pip
-          pip3 install virtualenv
-          virtualenv venv
-          source venv/bin/activate
-          pip install prowler boto3 cryptography pyOpenSSL
+          git clone https://github.com/prowler-cloud/prowler.git
+          cd prowler
+          # Optionally, install dependencies if needed
 
-      - name: Run Prowler AWS Checks
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  
+      - name: Run Prowler Scan
+        id: prowler
         run: |
-          source venv/bin/activate
-          prowler aws
+          cd prowler
+          ./prowler -c check135 > report.txt  # Adjust checks as needed
+          echo "Scan complete, generating report."
 
-      - name: Start Prowler Dashboard
+      - name: Send Report to Slack
         run: |
-          source venv/bin/activate
-          prowler dashboard
+          report=$(cat prowler/report.txt)
+          curl -X POST -H 'Content-type: application/json' --data "{
+            \"text\": \"*Prowler Alert: Vulnerabilities Detected*\\n\`\`\`${report}\`\`\`\"
+          }" "${{ secrets.SLACK_WEBHOOK_URL }}"
