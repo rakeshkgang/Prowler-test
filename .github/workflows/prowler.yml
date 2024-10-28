@@ -32,9 +32,8 @@ jobs:
       - name: Run Prowler Scan
         run: |
           cd prowler
-          # Replace with the correct script name you find in the previous step
-          chmod +x ./check_prowler.sh  # Adjust this line based on the actual script name
-          ./check_prowler.sh -c check135 > report.txt  # Adjust if necessary
+          chmod +x ./prowler.py  # Make the Prowler script executable
+          ./prowler.py -c check135 > report.txt  # Run the scan
           echo "Scan complete, generating report."
 
       - name: Send Report to Slack
