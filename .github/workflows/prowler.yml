@@ -8,7 +8,7 @@ on:
 
 jobs:
   prowler:
-    runs-on: ubuntu-22.04  # Change to a specific version
+    runs-on: ubuntu-22.04  # Use a specific version for better compatibility
 
     steps:
       - name: Checkout Code
@@ -21,7 +21,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install --upgrade pip  # Upgrade pip to the latest version
-          pip install prowler boto3 botocore cryptography==39.0.1 pyOpenSSL==22.0.0  # Adjust versions as needed
+          pip install prowler boto3 botocore cryptography==38.0.0 pyOpenSSL==21.0.0  # Adjust versions for compatibility
 
       - name: Run Prowler Scan
         env:
