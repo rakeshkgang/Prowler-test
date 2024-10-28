@@ -8,16 +8,20 @@ on:
 
 jobs:
   prowler:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # Change to a specific version
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
 
+      - name: Clean Environment
+        run: |
+          pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL
+
       - name: Install Dependencies
         run: |
           pip install --upgrade pip  # Upgrade pip to the latest version
-          pip install prowler boto3 botocore cryptography==39.0.1 pyOpenSSL==21.0.0  # Try specific versions
+          pip install prowler boto3 botocore cryptography==39.0.1 pyOpenSSL==22.0.0  # Adjust versions as needed
 
       - name: Run Prowler Scan
         env:
@@ -51,3 +55,4 @@ jobs:
           else
             echo "No report files found to send to Slack."
           fi
+test
