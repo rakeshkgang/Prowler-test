@@ -19,22 +19,10 @@ jobs:
           git clone https://github.com/prowler-cloud/prowler.git
           cd prowler
 
-      - name: List All Files
-        run: |
-          cd prowler
-          find . -print  # This will print all files and directories in the prowler folder
-
-      - name: List Detailed Structure
-        run: |
-          cd prowler
-          ls -lR  # List all files and directories recursively with details
-
       - name: Run Prowler Scan
-        id: prowler
         run: |
           cd prowler
-          # Make sure to replace 'check_prowler.sh' with the actual script found in previous steps
-          chmod +x ./check_prowler.sh  # Adjust this line based on the actual executable name
+          chmod +x ./check_prowler.sh  # Adjust the script name if needed
           ./check_prowler.sh -c check135 > report.txt  # Adjust if necessary
           echo "Scan complete, generating report."
 
