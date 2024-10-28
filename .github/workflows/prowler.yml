@@ -24,20 +24,13 @@ jobs:
           cd prowler
           ls -lR  # List all files recursively to see the structure
 
-      - name: Identify Prowler Executable
-        id: identify
-        run: |
-          cd prowler
-          # Assuming 'prowler' is a directory, look for executable scripts within it
-          ls -lR prowler
-
       - name: Run Prowler Scan
         id: prowler
         run: |
           cd prowler
-          # Use the correct script based on the output from the previous step
-          chmod +x ./prowler/check_prowler.sh  # Update this based on actual structure
-          ./prowler/check_prowler.sh -c check135 > report.txt  # Update based on actual structure
+          # Assuming the Prowler executable is directly in this directory
+          chmod +x ./prowler  # This might need to be adjusted based on the output
+          ./prowler -c check135 > report.txt  # Adjust command if needed
           echo "Scan complete, generating report."
 
       - name: Send Report to Slack
