@@ -23,8 +23,8 @@ jobs:
         id: prowler
         run: |
           cd prowler
-          chmod +x prowler  # Make sure the script is executable
-          ./prowler -c check135 > report.txt  # Adjust checks as needed
+          chmod +x prowler/check_prowler.sh  # Make the Prowler script executable
+          ./check_prowler.sh -c check135 > report.txt  # Use the correct script name
           echo "Scan complete, generating report."
 
       - name: Send Report to Slack
