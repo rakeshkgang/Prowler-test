@@ -23,7 +23,7 @@ jobs:
         run: |
           git clone https://github.com/prowler-cloud/prowler.git
           cd prowler
-          poetry install --no-root  # Install dependencies without installing the project itself
+          poetry install  # Install all dependencies listed in pyproject.toml
 
       - name: List Prowler Directory
         run: |
@@ -38,8 +38,7 @@ jobs:
       - name: Run Prowler Scan
         run: |
           cd prowler
-          chmod +x ./prowler.py  # Make the Prowler script executable
-          python3 ./prowler.py -c check135 > report.txt  # Run the scan using Python
+          poetry run python ./prowler.py -c check135 > report.txt  # Run the scan using Poetry's Python
           echo "Scan complete, generating report."
 
       - name: Send Report to Slack
