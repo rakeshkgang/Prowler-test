@@ -24,12 +24,17 @@ jobs:
           cd prowler
           ls -lR  # List all files and directories recursively
 
-      - name: Identify and Run Prowler Scan
+      - name: Identify Executable Files
         run: |
           cd prowler
-          # Assuming you need to adjust the path based on the output of the previous step
-          chmod +x ./prowler/check_prowler.sh  # Update this line based on actual script name
-          ./prowler/check_prowler.sh -c check135 > report.txt  # Adjust command if needed
+          find . -type f -executable  # Find all executable files
+
+      - name: Run Prowler Scan
+        run: |
+          cd prowler
+          # Replace with the correct script name you find in the previous step
+          chmod +x ./check_prowler.sh  # Adjust this line based on the actual script name
+          ./check_prowler.sh -c check135 > report.txt  # Adjust if necessary
           echo "Scan complete, generating report."
 
       - name: Send Report to Slack
