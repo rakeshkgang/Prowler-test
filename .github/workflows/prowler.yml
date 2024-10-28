@@ -31,7 +31,8 @@ jobs:
             if timeout 300 prowler aws -c "$check" -v > "report_$check.txt" 2> "error_$check.log"; then
               echo "Check $check completed successfully."
             else
-              echo "Check $check failed. See error log: error_$check.log"
+              echo "Check $check failed. See error log for details:"
+              cat "error_$check.log"  # Output the error log for troubleshooting
               exit 1
             fi
           done
