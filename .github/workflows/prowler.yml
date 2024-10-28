@@ -3,7 +3,7 @@ name: Prowler Security Scan
 on:
   push:
     branches:
-      - main 
+      - main  # Change this to your default branch if needed
   workflow_dispatch:
 
 jobs:
@@ -18,12 +18,12 @@ jobs:
         run: |
           git clone https://github.com/prowler-cloud/prowler.git
           cd prowler
-          # Optionally, install dependencies if needed
 
       - name: Run Prowler Scan
         id: prowler
         run: |
           cd prowler
+          chmod +x prowler  # Make sure the script is executable
           ./prowler -c check135 > report.txt  # Adjust checks as needed
           echo "Scan complete, generating report."
 
