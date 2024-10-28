@@ -14,16 +14,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Install Poetry
+      - name: Install Prowler
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH  # Add Poetry to PATH
-
-      - name: Install Prowler and Dependencies
-        run: |
-          git clone https://github.com/prowler-cloud/prowler.git
-          cd prowler
-          poetry install  # Install all dependencies listed in pyproject.toml
+          pip install prowler  # Install Prowler using pip
 
       - name: Run Prowler Scan
         env:
@@ -31,10 +24,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         run: |
-          cd prowler
           for check in check135; do  # You can add more checks if needed
             echo "Running check: $check"
-            poetry run python ./prowler.py -c "$check" > "report_$check.txt"
+            prowler aws -c "$check" > "report_$check.txt"
           done
           echo "All scans complete, generated reports:"
           ls -l report_*.txt  # List generated report files
