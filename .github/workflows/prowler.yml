@@ -32,7 +32,7 @@ jobs:
           set -e  # Exit immediately if a command exits with a non-zero status
           for check in check135; do  # You can add more checks if needed
             echo "Running check: $check"
-            if timeout 300 prowler aws -c "$check" --output json,html,csv > "report_$check.txt" 2> "error_$check.log"; then
+            if timeout 300 prowler aws -c "$check" --output-formats json,html,csv > "report_$check.txt" 2> "error_$check.log"; then
               echo "Check $check completed successfully."
             else
               echo "Check $check failed. See error log for details:"
@@ -45,8 +45,8 @@ jobs:
 
       - name: Send Reports to Slack
         run: |
-          if ls prowler-output-*.json prowler-output-*.csv prowler-output-*.html 1> /dev/null 2>&1; then
-            for report in prowler-output-*.json prowler-output-*.csv prowler-output-*.html; do
+          if ls report_*.txt 1> /dev/null 2>&1; then
+            for report in report_*.txt; do
               content=$(cat "$report")
               curl -X POST -H 'Content-type: application/json' --data "{
                 \"text\": \"*Prowler Alert: Vulnerabilities Detected for ${report}*\\n\`\`\`${content}\`\`\`\"
