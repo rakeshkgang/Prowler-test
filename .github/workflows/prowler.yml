@@ -42,12 +42,16 @@ jobs:
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         run: |
           cd prowler
-          poetry run python ./prowler.py -c check135 > report.txt  # Run the scan using Poetry's Python
-          echo "Scan complete, generating report."
+          for check in check135 check136 check137; do  # Add more checks as needed
+            poetry run python ./prowler.py -c "$check" > "report_$check.txt"
+          done
+          echo "All scans complete, generating reports."
 
-      - name: Send Report to Slack
+      - name: Send Reports to Slack
         run: |
-          report=$(cat prowler/report.txt)
-          curl -X POST -H 'Content-type: application/json' --data "{
-            \"text\": \"*Prowler Alert: Vulnerabilities Detected*\\n\`\`\`${report}\`\`\`\"
-          }" "${{ secrets.SLACK_WEBHOOK_URL }}"
+          for report in report_*.txt; do
+            content=$(cat "$report")
+            curl -X POST -H 'Content-type: application/json' --data "{
+              \"text\": \"*Prowler Alert: Vulnerabilities Detected for ${report}*\\n\`\`\`${content}\`\`\`\"
+            }" "${{ secrets.SLACK_WEBHOOK_URL }}"
+          done
