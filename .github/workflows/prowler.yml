@@ -22,14 +22,15 @@ jobs:
       - name: List Prowler Directory
         run: |
           cd prowler
-          ls -l  # This will show the files in the directory to confirm structure
+          ls -l  # List all files to confirm what's in the directory
 
       - name: Run Prowler Scan
         id: prowler
         run: |
           cd prowler
-          chmod +x ./check_prowler.sh  # Make the main Prowler script executable
-          ./check_prowler.sh -c check135 > report.txt  # Run the scan
+          # Assuming Prowler's main script is named 'prowler' (the executable)
+          chmod +x ./prowler  # Make the main Prowler script executable
+          ./prowler -c check135 > report.txt  # Run the scan
           echo "Scan complete, generating report."
 
       - name: Send Report to Slack
