@@ -28,10 +28,10 @@ jobs:
           set -e  # Exit immediately if a command exits with a non-zero status
           for check in check135; do  # You can add more checks if needed
             echo "Running check: $check"
-            if prowler aws -c "$check" > "report_$check.txt"; then
+            if timeout 300 prowler aws -c "$check" -v > "report_$check.txt" 2> "error_$check.log"; then
               echo "Check $check completed successfully."
             else
-              echo "Check $check failed."
+              echo "Check $check failed. See error log: error_$check.log"
               exit 1
             fi
           done
