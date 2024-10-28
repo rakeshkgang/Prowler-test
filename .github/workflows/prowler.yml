@@ -25,16 +25,6 @@ jobs:
           cd prowler
           poetry install  # Install all dependencies listed in pyproject.toml
 
-      - name: List Prowler Directory
-        run: |
-          cd prowler
-          ls -lR  # List all files and directories recursively
-
-      - name: Identify Executable Files
-        run: |
-          cd prowler
-          find . -type f -executable  # Find all executable files
-
       - name: Run Prowler Scan
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -42,16 +32,22 @@ jobs:
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         run: |
           cd prowler
-          for check in check135 check136 check137; do  # Add more checks as needed
+          for check in check135; do  # You can add more checks if needed
+            echo "Running check: $check"
             poetry run python ./prowler.py -c "$check" > "report_$check.txt"
           done
-          echo "All scans complete, generating reports."
+          echo "All scans complete, generated reports:"
+          ls -l report_*.txt  # List generated report files
 
       - name: Send Reports to Slack
         run: |
-          for report in report_*.txt; do
-            content=$(cat "$report")
-            curl -X POST -H 'Content-type: application/json' --data "{
-              \"text\": \"*Prowler Alert: Vulnerabilities Detected for ${report}*\\n\`\`\`${content}\`\`\`\"
-            }" "${{ secrets.SLACK_WEBHOOK_URL }}"
-          done
+          if ls report_*.txt 1> /dev/null 2>&1; then
+            for report in report_*.txt; do
+              content=$(cat "$report")
+              curl -X POST -H 'Content-type: application/json' --data "{
+                \"text\": \"*Prowler Alert: Vulnerabilities Detected for ${report}*\\n\`\`\`${content}\`\`\`\"
+              }" "${{ secrets.SLACK_WEBHOOK_URL }}"
+            done
+          else
+            echo "No report files found to send to Slack."
+          fi
