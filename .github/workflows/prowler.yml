@@ -17,7 +17,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install --upgrade pip  # Upgrade pip to the latest version
-          pip install prowler boto3 botocore pyOpenSSL  # Install Prowler and required libraries
+          pip install prowler==1.0.0 boto3==1.24.0 botocore==1.27.0 pyOpenSSL==21.0.0  # Install specific versions
 
       - name: Run Prowler Scan
         env:
