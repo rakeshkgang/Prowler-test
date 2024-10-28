@@ -17,7 +17,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install --upgrade pip  # Upgrade pip to the latest version
-          pip install prowler boto3 botocore pyOpenSSL  # Install latest versions without specific constraints
+          pip install prowler boto3 botocore pyOpenSSL  # Install latest versions
 
       - name: Run Prowler Scan
         env:
@@ -25,9 +25,15 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         run: |
+          set -e  # Exit immediately if a command exits with a non-zero status
           for check in check135; do  # You can add more checks if needed
             echo "Running check: $check"
-            prowler aws -c "$check" > "report_$check.txt"
+            if prowler aws -c "$check" > "report_$check.txt"; then
+              echo "Check $check completed successfully."
+            else
+              echo "Check $check failed."
+              exit 1
+            fi
           done
           echo "All scans complete, generated reports:"
           ls -l report_*.txt  # List generated report files
