@@ -55,4 +55,3 @@ jobs:
           else
             echo "No report files found to send to Slack."
           fi
-test
