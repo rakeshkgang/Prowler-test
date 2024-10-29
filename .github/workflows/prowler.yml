@@ -28,7 +28,7 @@ jobs:
           aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
           aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
-          
+          aws configure set region us-east-1  # Change this to your desired region
 
       - name: Run Prowler Scan
         id: prowler_scan
@@ -37,14 +37,13 @@ jobs:
           report_file_json="report_all_checks.json"
           report_file_csv="report_all_checks.csv"
           error_file="error_all_checks.log"
-          
           echo "Running all checks..."
+          
+          # Run Prowler and generate reports
           if timeout 300 prowler aws -c all --output-formats json-asff --output-formats csv --verbose > "$report_file_json" 2> "$error_file"; then
-            echo "All checks completed successfully."
-            # Generate the CSV report and append to the report file
+            # Create CSV report separately
             prowler aws -c all --output-formats csv > "$report_file_csv"
-            echo "Reports generated:"
-            ls -l "$report_file_json" "$report_file_csv"  # Check if reports exist
+            echo "All checks completed successfully."
             echo "scan_status=success" >> $GITHUB_ENV
           else
             echo "Checks failed. See error log for details:"
@@ -56,7 +55,14 @@ jobs:
       - name: Send Reports to Slack
         if: env.scan_status == 'success'
         run: |
+          # List current directory contents for debugging
+          echo "Current directory contents:"
+          ls -l
+
           # Ensure files exist before reading
+          report_file_json="report_all_checks.json"
+          report_file_csv="report_all_checks.csv"
+
           if [[ ! -f "$report_file_json" || ! -f "$report_file_csv" ]]; then
             echo "One or both report files do not exist."
             exit 1
