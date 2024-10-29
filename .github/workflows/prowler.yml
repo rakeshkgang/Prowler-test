@@ -35,7 +35,7 @@ jobs:
           set -e  # Exit immediately if a command exits with a non-zero status
           for check in check135; do  # You can add more checks if needed
             echo "Running check: $check"
-            if timeout 300 prowler aws -c "$check" --output-formats json-asff --output-formats html --output-formats csv > "report_$check.txt" 2> "error_$check.log"; then
+            if timeout 300 prowler aws -c "$check" --output-formats json-asff --output-formats csv > "report_$check.txt" 2> "error_$check.log"; then
               echo "Check $check completed successfully."
             else
               echo "Check $check failed. See error log for details:"
@@ -44,7 +44,7 @@ jobs:
             fi
           done
           echo "All scans complete, generated reports:"
-          ls -l report_*.txt prowler-output-*.json prowler-output-*.csv prowler-output-*.html  # List generated report files
+          ls -l report_*.txt prowler-output-*.json prowler-output-*.csv  # List generated report files
 
       - name: Send Reports to Slack
         run: |
