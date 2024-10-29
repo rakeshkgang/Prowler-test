@@ -18,10 +18,10 @@ jobs:
         run: |
           pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL || true
 
-      - name: Install Prowler with Compatible Versions
+      - name: Install Prowler
         run: |
           pip install --upgrade pip
-          pip install "boto3>=1.26.17,<1.27.0" "botocore>=1.29.0,<1.30.0" prowler==4.4.1  # Specify the version
+          pip install prowler  # No version constraints for boto3 or botocore
 
       - name: Configure AWS Credentials
         run: |
