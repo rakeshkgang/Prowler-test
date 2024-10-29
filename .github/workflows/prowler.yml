@@ -46,7 +46,7 @@ jobs:
           export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           export AWS_SESSION_TOKEN="${{ secrets.AWS_SESSION_TOKEN }}"
 
-          if timeout 300 prowler aws -c all --output-formats json-ocsf --output-filename "$report_file_json" --verbose > "$error_file"; then
+          if timeout 600 prowler aws -c all --output-formats json-ocsf --output-filename "$report_file_json" --verbose > "$error_file"; then
             # Run CSV output as well
             prowler aws -c all --output-formats csv --output-filename "$report_file_csv" || true
             
@@ -65,6 +65,12 @@ jobs:
             echo "scan_status=failed" >> $GITHUB_ENV
             exit 1
           fi
+
+      - name: Show Error Log
+        if: failure()
+        run: |
+          echo "Error Log Contents:"
+          cat error_all_checks.log
 
       - name: Send Reports to Slack
         if: env.scan_status == 'success'
