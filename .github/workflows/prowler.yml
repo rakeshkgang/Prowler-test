@@ -43,10 +43,16 @@ jobs:
           if timeout 300 prowler aws -c all --output-formats json-ocsf --output-filename "$report_file_json" --verbose > "$error_file"; then
             # Run CSV output as well, even if JSON output has no findings
             prowler aws -c all --output-formats csv --output-filename "$report_file_csv" || true
-            # Ensure both files exist
-            touch "$report_file_json" "$report_file_csv"  # Create empty files if they don't exist
-            echo "All checks completed successfully."
-            echo "scan_status=success" >> $GITHUB_ENV
+            
+            # Check if report files were created
+            if [[ -f "$report_file_json" && -f "$report_file_csv" ]]; then
+              echo "All checks completed successfully."
+              echo "scan_status=success" >> $GITHUB_ENV
+            else
+              echo "One or both report files were not created."
+              echo "scan_status=failed" >> $GITHUB_ENV
+              exit 1
+            fi
           else
             echo "Checks failed. See error log for details:"
             cat "$error_file"
