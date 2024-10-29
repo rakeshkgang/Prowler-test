@@ -51,20 +51,30 @@ jobs:
             exit 1
           fi
 
+          # Debugging: List current directory contents
+          echo "Current directory contents:"
+          ls -l
+
       - name: Upload Reports to S3
         if: env.scan_status == 'success'
         run: |
           report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
           report_file_json="${report_prefix}.ocsf.json"
           report_file_csv="${report_prefix}.csv"
-          
+
+          # Check if files exist before uploading
+          if [[ ! -f "$report_file_json" || ! -f "$report_file_csv" ]]; then
+            echo "One or both report files do not exist."
+            exit 1
+          fi
+
           # Upload to S3
           aws s3 cp "$report_file_json" "s3://${{ secrets.S3_BUCKET_NAME }}/$report_file_json" --acl public-read
           aws s3 cp "$report_file_csv" "s3://${{ secrets.S3_BUCKET_NAME }}/$report_file_csv" --acl public-read
-          
+
           # Construct public URLs
-          json_url="https://s3.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_json"
-          csv_url="https://s3.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_csv"
+          json_url="https://s3.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_json"
+          csv_url="https://s3.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_csv"
 
           echo "json_url=$json_url" >> $GITHUB_ENV
           echo "csv_url=$csv_url" >> $GITHUB_ENV
