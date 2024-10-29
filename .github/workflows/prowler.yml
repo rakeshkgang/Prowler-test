@@ -1,57 +1,3 @@
-name: Prowler Security Scan
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-jobs:
-  prowler:
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      - name: Clean Environment
-        run: |
-          pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL || true
-
-      - name: Install Prowler with Compatible Versions
-        run: |
-          pip install --upgrade pip
-          pip install "boto3>=1.26.17,<1.27.0" "botocore>=1.29.0,<1.30.0" prowler
-
-      - name: Configure AWS Credentials
-        run: |
-          aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
-          aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-          aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
-          aws configure set region us-east-1  # Change this to your desired region
-
-      - name: Run Prowler Scan
-        id: prowler_scan
-        run: |
-          set -e
-          report_file_json="report_all_checks.json"
-          report_file_csv="report_all_checks.csv"
-          error_file="error_all_checks.log"
-          echo "Running all checks..."
-          
-          # Run Prowler and generate reports
-          if timeout 300 prowler aws -c all --output-formats json-asff --output-formats csv --verbose > "$report_file_json" 2> "$error_file"; then
-            # Create CSV report separately
-            prowler aws -c all --output-formats csv > "$report_file_csv"
-            echo "All checks completed successfully."
-            echo "scan_status=success" >> $GITHUB_ENV
-          else
-            echo "Checks failed. See error log for details:"
-            cat "$error_file"
-            echo "scan_status=failed" >> $GITHUB_ENV
-            exit 1
-          fi
-
       - name: Send Reports to Slack
         if: env.scan_status == 'success'
         run: |
@@ -68,20 +14,25 @@ jobs:
             exit 1
           fi
           
-          # Prepare JSON report content
-          content_json=$(<"$report_file_json")
-          content_csv=$(<"$report_file_csv")
-
           echo "Sending reports to Slack..."
 
-          # Prepare the JSON payload
-          payload=$(jq -n --arg text "*Prowler Scan Report for All Checks*\n\n*JSON Report:*\n\`\`\`$content_json\`\`\`\n\n*CSV Report:*\n\`\`\`$content_csv\`\`\`" '{text: $text}')
+          # Send JSON report as a text message
+          content_json=$(<"$report_file_json")
+          payload_json=$(jq -n --arg text "*Prowler Scan Report for All Checks*\n\n*JSON Report:*\n\`\`\`$content_json\`\`\`" '{text: $text}')
 
-          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-type: application/json' --data "$payload" "${{ secrets.SLACK_WEBHOOK_URL }}")
+          response_json=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-type: application/json' --data "$payload_json" "${{ secrets.SLACK_WEBHOOK_URL }}")
 
-          if [ "$response" -ne 200 ]; then
-            echo "Failed to send report to Slack. HTTP status code: $response"
+          if [ "$response_json" -ne 200 ]; then
+            echo "Failed to send JSON report to Slack. HTTP status code: $response_json"
             exit 1
           else
-            echo "Reports sent to Slack successfully."
+            echo "JSON report sent to Slack successfully."
           fi
+
+          # Upload CSV report as a file
+          curl -F file=@"$report_file_csv" \
+               -F "initial_comment=Here is the Prowler scan CSV report." \
+               -F channels="${{ secrets.SLACK_CHANNEL_ID }}" \
+               -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
+               https://slack.com/api/files.upload
+
