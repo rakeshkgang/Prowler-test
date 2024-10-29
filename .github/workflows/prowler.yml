@@ -14,26 +14,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Set Up AWS CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y awscli
-
-      - name: Configure AWS CLI
-        run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set aws_session_token ${{ secrets.AWS_SESSION_TOKEN }}
-         
-
       - name: Clean Environment
         run: |
-          pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL urllib3
+          pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL
 
-      - name: Install Prowler with Specific Versions
+      - name: Install Prowler with Compatible Versions
         run: |
           pip install --upgrade pip  # Upgrade pip to the latest version
-          pip install "boto3==1.26.0" "botocore==1.29.0" "pyOpenSSL==22.0.0" prowler 
+          pip install "boto3>=1.26.17,<1.27.0" "botocore>=1.29.0,<1.30.0" prowler 
+          
+      - name: Configure AWS Credentials
+        run: |
+          aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
+          aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
+          aws configure set region us-east-1  # Change this to your desired region
 
       - name: Run Prowler Scan
         run: |
