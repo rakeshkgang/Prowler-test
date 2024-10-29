@@ -33,8 +33,8 @@ jobs:
       - name: Verify AWS Credentials
         run: |
           echo "Verifying AWS Credentials..."
-          aws sts get-caller-identity --output json
-          aws configure list
+          aws sts get-caller-identity --output json || { echo "Failed to get caller identity"; exit 1; }
+          aws configure list || { echo "Failed to list AWS configuration"; exit 1; }
 
       - name: Debug AWS Environment
         run: |
