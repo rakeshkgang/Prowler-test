@@ -52,9 +52,11 @@ jobs:
         run: |
           content=$(<report_check135.txt)
           echo "Sending report to Slack..."
-          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-type: application/json' --data "{
-            \"text\": \"*Prowler Scan Report for check135*\\n\`\`\`${content}\`\`\`\"
-          }" "${{ secrets.SLACK_WEBHOOK_URL }}")
+          
+          # Prepare the JSON payload
+          payload=$(jq -n --arg text "*Prowler Scan Report for check135\n\`\`\`$content\`\`\`" '{text: $text}')
+
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-type: application/json' --data "$payload" "${{ secrets.SLACK_WEBHOOK_URL }}")
 
           if [ "$response" -ne 200 ]; then
             echo "Failed to send report to Slack. HTTP status code: $response"
