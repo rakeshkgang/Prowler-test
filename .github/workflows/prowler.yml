@@ -28,7 +28,7 @@ jobs:
           aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
           aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
-          
+          aws configure set region eu-north-1  # Ensure this is your desired region
 
       - name: Run Prowler Scan
         id: prowler_scan
@@ -37,13 +37,11 @@ jobs:
           report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
           report_file_json="${report_prefix}.ocsf.json"
           report_file_csv="${report_prefix}.csv"
-          report_file_html="${report_prefix}.html"
           error_file="error_all_checks.log"
           
           echo "Running all checks..."
-          if timeout 300 prowler aws -c all --output-formats json-asff --output-formats csv --verbose > "$report_file_json" 2> "$error_file"; then
-            prowler aws -c all --output-formats csv > "$report_file_csv"
-            prowler aws -c all --output-formats html > "$report_file_html"
+          if timeout 300 prowler aws -c all --output-formats json-ocsf --output-filename "$report_file_json" --verbose > "$error_file"; then
+            prowler aws -c all --output-formats csv --output-filename "$report_file_csv"
             echo "All checks completed successfully."
             echo "scan_status=success" >> $GITHUB_ENV
           else
@@ -59,21 +57,17 @@ jobs:
           report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
           report_file_json="${report_prefix}.ocsf.json"
           report_file_csv="${report_prefix}.csv"
-          report_file_html="${report_prefix}.html"
           
           # Upload to S3
           aws s3 cp "$report_file_json" "s3://${{ secrets.S3_BUCKET_NAME }}/$report_file_json" --acl public-read
           aws s3 cp "$report_file_csv" "s3://${{ secrets.S3_BUCKET_NAME }}/$report_file_csv" --acl public-read
-          aws s3 cp "$report_file_html" "s3://${{ secrets.S3_BUCKET_NAME }}/$report_file_html" --acl public-read
           
           # Construct public URLs
           json_url="https://s3.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_json"
           csv_url="https://s3.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_csv"
-          html_url="https://s3.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_html"
 
           echo "json_url=$json_url" >> $GITHUB_ENV
           echo "csv_url=$csv_url" >> $GITHUB_ENV
-          echo "html_url=$html_url" >> $GITHUB_ENV
 
       - name: Send Reports to Slack
         if: env.scan_status == 'success'
@@ -81,7 +75,7 @@ jobs:
           # Prepare the message with links to the reports
           echo "Sending reports to Slack..."
 
-          payload=$(jq -n --arg text "*Prowler Scan Report*\n\nHere are the detailed results:\n\n*JSON Report:* <$json_url|Download>\n*CSV Report:* <$csv_url|Download>\n*HTML Report:* <$html_url|Download>" '{text: $text}')
+          payload=$(jq -n --arg text "*Prowler Scan Report*\n\nHere are the detailed results:\n\n*JSON Report:* <$json_url|Download>\n*CSV Report:* <$csv_url|Download>" '{text: $text}')
 
           # Send the message to Slack
           response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-type: application/json' --data "$payload" "${{ secrets.SLACK_WEBHOOK_URL }}")
