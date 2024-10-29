@@ -21,7 +21,7 @@ jobs:
       - name: Install Prowler with Compatible Versions
         run: |
           pip install --upgrade pip
-          pip install "boto3>=1.26.17,<1.27.0" "botocore>=1.29.0,<1.30.0" prowler
+          pip install "boto3>=1.26.17,<1.27.0" "botocore>=1.29.0,<1.30.0" prowler==4.4.1  # Specify the version
 
       - name: Configure AWS Credentials
         run: |
@@ -38,7 +38,7 @@ jobs:
           report_file_json="${report_prefix}.ocsf.json"
           report_file_csv="${report_prefix}.csv"
           error_file="error_all_checks.log"
-          
+
           echo "Running all checks..."
           if timeout 300 prowler aws -c all --output-formats json-ocsf --output-filename "$report_file_json" --verbose > "$error_file"; then
             # Run CSV output as well, even if JSON output has no findings
