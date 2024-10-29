@@ -17,7 +17,7 @@ jobs:
       - name: Clean Environment
         run: |
           pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL urllib3 || true
-
+          ###
       - name: Install Prowler and Dependencies
         run: |
           pip install --upgrade pip
