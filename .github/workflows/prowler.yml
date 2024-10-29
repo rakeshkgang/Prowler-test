@@ -31,6 +31,12 @@ jobs:
           aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
           aws configure set region eu-north-1  # Set your desired AWS region
 
+      - name: Verify AWS Credentials
+        run: |
+          echo "Verifying AWS Credentials..."
+          aws sts get-caller-identity
+          aws configure list
+
       - name: Run Prowler Scan
         id: prowler_scan
         run: |
