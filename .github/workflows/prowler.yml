@@ -16,12 +16,13 @@ jobs:
 
       - name: Clean Environment
         run: |
-          pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL || true
+          pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL urllib3 || true
 
-      - name: Install Prowler
+      - name: Install Prowler and Dependencies
         run: |
           pip install --upgrade pip
-          pip install prowler  # No version constraints for boto3 or botocore
+          pip install prowler
+          pip install "pyOpenSSL>=22.0.0" "urllib3>=1.26.0"
 
       - name: Configure AWS Credentials
         run: |
