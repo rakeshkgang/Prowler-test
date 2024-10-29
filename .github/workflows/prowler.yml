@@ -27,22 +27,22 @@ jobs:
         run: |
           aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
           aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-          aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
           aws configure set region us-east-1  # Change this to your desired region
 
       - name: Run Prowler Scan
         id: prowler_scan
         run: |
           set -e
-          report_file_json="report_all_checks.json"
-          report_file_csv="report_all_checks.csv"
+          report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
+          report_file_json="${report_prefix}.ocsf.json"
+          report_file_csv="${report_prefix}.csv"
+          report_file_html="${report_prefix}.html"
           error_file="error_all_checks.log"
+          
           echo "Running all checks..."
-
-          # Run Prowler and generate reports
           if timeout 300 prowler aws -c all --output-formats json-asff --output-formats csv --verbose > "$report_file_json" 2> "$error_file"; then
-            # Create CSV report separately
             prowler aws -c all --output-formats csv > "$report_file_csv"
+            prowler aws -c all --output-formats html > "$report_file_html"
             echo "All checks completed successfully."
             echo "scan_status=success" >> $GITHUB_ENV
           else
@@ -52,40 +52,42 @@ jobs:
             exit 1
           fi
 
+      - name: Upload Reports to S3
+        if: env.scan_status == 'success'
+        run: |
+          report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
+          report_file_json="${report_prefix}.ocsf.json"
+          report_file_csv="${report_prefix}.csv"
+          report_file_html="${report_prefix}.html"
+          
+          # Upload to S3
+          aws s3 cp "$report_file_json" "s3://${{ secrets.S3_BUCKET_NAME }}/$report_file_json" --acl public-read
+          aws s3 cp "$report_file_csv" "s3://${{ secrets.S3_BUCKET_NAME }}/$report_file_csv" --acl public-read
+          aws s3 cp "$report_file_html" "s3://${{ secrets.S3_BUCKET_NAME }}/$report_file_html" --acl public-read
+          
+          # Construct public URLs
+          json_url="https://s3.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_json"
+          csv_url="https://s3.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_csv"
+          html_url="https://s3.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_html"
+
+          echo "json_url=$json_url" >> $GITHUB_ENV
+          echo "csv_url=$csv_url" >> $GITHUB_ENV
+          echo "html_url=$html_url" >> $GITHUB_ENV
+
       - name: Send Reports to Slack
         if: env.scan_status == 'success'
         run: |
-          # List current directory contents for debugging
-          echo "Current directory contents:"
-          ls -l
-
-          # Ensure files exist before reading
-          report_file_json="report_all_checks.json"
-          report_file_csv="report_all_checks.csv"
-
-          if [[ ! -f "$report_file_json" || ! -f "$report_file_csv" ]]; then
-            echo "One or both report files do not exist."
-            exit 1
-          fi
-          
-          # Prepare JSON report content
-          content_json=$(<"$report_file_json")
-          content_csv=$(<"$report_file_csv")
-
+          # Prepare the message with links to the reports
           echo "Sending reports to Slack..."
 
-          # Prepare the JSON payload
-          payload=$(jq -n --arg text "*Prowler Scan Report for All Checks*\n\n*JSON Report:*\n\`\`\`$content_json\`\`\`\n\n*CSV Report:*\n\`\`\`$content_csv\`\`\`" '{text: $text}')
+          payload=$(jq -n --arg text "*Prowler Scan Report*\n\nHere are the detailed results:\n\n*JSON Report:* <$json_url|Download>\n*CSV Report:* <$csv_url|Download>\n*HTML Report:* <$html_url|Download>" '{text: $text}')
 
-          # Send JSON report to Slack
-          response_json=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-type: application/json' --data "$payload" "${{ secrets.SLACK_WEBHOOK_URL }}")
+          # Send the message to Slack
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-type: application/json' --data "$payload" "${{ secrets.SLACK_WEBHOOK_URL }}")
 
-          if [ "$response_json" -ne 200 ]; then
-            echo "Failed to send JSON report to Slack. HTTP status code: $response_json"
+          if [ "$response" -ne 200 ]; then
+            echo "Failed to send report to Slack. HTTP status code: $response"
             exit 1
           else
-            echo "JSON report sent to Slack successfully."
+            echo "Reports sent to Slack successfully."
           fi
-
-          # Upload the CSV report as a file attachment
-          curl -F file=@$report_file_csv -F "initial_comment=CSV Report from Prowler Scan" -F channels="${{ secrets.SLACK_CHANNEL_ID }}" -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" https://slack.com/api/files.upload
