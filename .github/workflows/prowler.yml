@@ -58,45 +58,28 @@ jobs:
           echo "Current directory contents:"
           ls -l
 
-      - name: Upload Reports to S3
-        if: env.scan_status == 'success'
-        run: |
-          # Use the same report prefix defined in the previous step
-          report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
-          report_file_json="${report_prefix}.ocsf.json"
-          report_file_csv="${report_prefix}.csv"
-
-          # Check if files exist and are not empty before uploading
-          if [[ ! -f "$report_file_json" || ! -s "$report_file_json" || ! -f "$report_file_csv" || ! -s "$report_file_csv" ]]; then
-            echo "One or both report files do not exist or are empty."
-            exit 1
-          fi
-
-          # Upload to S3
-          aws s3 cp "$report_file_json" "s3://${{ secrets.S3_BUCKET_NAME }}/$report_file_json" --acl public-read
-          aws s3 cp "$report_file_csv" "s3://${{ secrets.S3_BUCKET_NAME }}/$report_file_csv" --acl public-read
-
-          # Construct public URLs
-          json_url="https://s3.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_json"
-          csv_url="https://s3.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.S3_BUCKET_NAME }}/$report_file_csv"
-
-          echo "json_url=$json_url" >> $GITHUB_ENV
-          echo "csv_url=$csv_url" >> $GITHUB_ENV
-
       - name: Send Reports to Slack
         if: env.scan_status == 'success'
         run: |
           # Prepare the message with links to the reports
           echo "Sending reports to Slack..."
 
-          payload=$(jq -n --arg text "*Prowler Scan Report*\n\nHere are the detailed results:\n\n*JSON Report:* <$json_url|Download>\n*CSV Report:* <$csv_url|Download>" '{text: $text}')
+          # Send JSON report file
+          response_json=$(curl -s -F file=@${report_file_json} -F "initial_comment=Prowler Scan JSON Report" -F channels=${{ secrets.SLACK_CHANNEL_ID }} -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" https://slack.com/api/files.upload)
 
-          # Send the message to Slack
-          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-type: application/json' --data "$payload" "${{ secrets.SLACK_WEBHOOK_URL }}")
-
-          if [ "$response" -ne 200 ]; then
-            echo "Failed to send report to Slack. HTTP status code: $response"
+          if [[ $(echo "$response_json" | jq -r '.ok') != "true" ]]; then
+            echo "Failed to send JSON report to Slack: $(echo "$response_json" | jq -r '.error')"
             exit 1
           else
-            echo "Reports sent to Slack successfully."
+            echo "JSON report sent to Slack successfully."
+          fi
+
+          # Send CSV report file
+          response_csv=$(curl -s -F file=@${report_file_csv} -F "initial_comment=Prowler Scan CSV Report" -F channels=${{ secrets.SLACK_CHANNEL_ID }} -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" https://slack.com/api/files.upload)
+
+          if [[ $(echo "$response_csv" | jq -r '.ok') != "true" ]]; then
+            echo "Failed to send CSV report to Slack: $(echo "$response_csv" | jq -r '.error')"
+            exit 1
+          else
+            echo "CSV report sent to Slack successfully."
           fi
