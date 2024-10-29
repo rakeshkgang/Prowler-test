@@ -23,8 +23,6 @@ jobs:
           pip install --upgrade pip
           pip install prowler
           pip install "pyOpenSSL>=22.0.0" "urllib3>=1.26.0"
-          sudo apt-get update
-          sudo apt-get install -y awscli
 
       - name: Configure AWS Credentials
         run: |
@@ -49,6 +47,7 @@ jobs:
           export AWS_SESSION_TOKEN="${{ secrets.AWS_SESSION_TOKEN }}"
 
           if timeout 300 prowler aws -c all --output-formats json-ocsf --output-filename "$report_file_json" --verbose > "$error_file"; then
+            # Run CSV output as well
             prowler aws -c all --output-formats csv --output-filename "$report_file_csv" || true
             
             # Check if report files were created
@@ -62,7 +61,7 @@ jobs:
             fi
           else
             echo "Checks failed. See error log for details:"
-            cat "$error_file"
+            cat "$error_file"  # Print the contents of the error log
             echo "scan_status=failed" >> $GITHUB_ENV
             exit 1
           fi
