@@ -20,6 +20,7 @@ jobs:
 
       - name: Install Prowler and Dependencies
         run: |
+          pip install --upgrade pip
           pip install prowler
           pip install "pyOpenSSL>=22.0.0" "urllib3>=1.26.0"
           sudo apt-get update
@@ -30,12 +31,6 @@ jobs:
           aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
           aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
-
-      - name: Verify AWS Credentials
-        run: |
-          echo "Verifying AWS Credentials..."
-          aws sts get-caller-identity --output json || { echo "Failed to get caller identity"; exit 1; }
-          aws configure list || { echo "Failed to list AWS configuration"; exit 1; }
 
       - name: Run Prowler Scan
         id: prowler_scan
