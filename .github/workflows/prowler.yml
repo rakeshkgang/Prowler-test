@@ -23,6 +23,9 @@ jobs:
           pip install --upgrade pip
           pip install prowler
           pip install "pyOpenSSL>=22.0.0" "urllib3>=1.26.0"
+          # Install AWS CLI
+          sudo apt-get update
+          sudo apt-get install -y awscli
 
       - name: Configure AWS Credentials
         run: |
