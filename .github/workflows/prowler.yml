@@ -60,32 +60,27 @@ jobs:
             exit 1
           fi
 
-          # Debugging: List current directory contents
-          echo "Current directory contents:"
-          ls -l
-
       - name: Send Reports to Slack
         if: env.scan_status == 'success'
         run: |
-          # Prepare the message with links to the reports
           echo "Sending reports to Slack..."
 
-          # Send JSON report file
-          response_json=$(curl -s -F file=@${report_file_json} -F "initial_comment=Prowler Scan JSON Report" -F channels=${{ secrets.SLACK_CHANNEL_ID }} -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" https://slack.com/api/files.upload)
+          # Function to send a file to Slack
+          send_file_to_slack() {
+            local file_path=$1
+            local comment=$2
+            local response=$(curl -s -F file=@${file_path} -F "initial_comment=${comment}" -F channels=${{ secrets.SLACK_CHANNEL_ID }} -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" https://slack.com/api/files.upload)
 
-          if [[ $(echo "$response_json" | jq -r '.ok') != "true" ]]; then
-            echo "Failed to send JSON report to Slack: $(echo "$response_json" | jq -r '.error')"
-            exit 1
-          else
-            echo "JSON report sent to Slack successfully."
-          fi
+            if [[ $(echo "$response" | jq -r '.ok') != "true" ]]; then
+              echo "Failed to send ${comment}: $(echo "$response" | jq -r '.error')"
+              exit 1
+            else
+              echo "${comment} sent to Slack successfully."
+            fi
+          }
+
+          # Send JSON report file
+          send_file_to_slack "${report_file_json}" "Prowler Scan JSON Report"
 
           # Send CSV report file
-          response_csv=$(curl -s -F file=@${report_file_csv} -F "initial_comment=Prowler Scan CSV Report" -F channels=${{ secrets.SLACK_CHANNEL_ID }} -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" https://slack.com/api/files.upload)
-
-          if [[ $(echo "$response_csv" | jq -r '.ok') != "true" ]]; then
-            echo "Failed to send CSV report to Slack: $(echo "$response_csv" | jq -r '.error')"
-            exit 1
-          else
-            echo "CSV report sent to Slack successfully."
-          fi
+          send_file_to_slack "${report_file_csv}" "Prowler Scan CSV Report"
