@@ -16,11 +16,11 @@ jobs:
 
       - name: Clean Environment
         run: |
-          pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL || true  # Ignore errors if packages are not installed
+          pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL || true
 
       - name: Install Prowler with Compatible Versions
         run: |
-          pip install --upgrade pip  # Upgrade pip to the latest version
+          pip install --upgrade pip
           pip install "boto3>=1.26.17,<1.27.0" "botocore>=1.29.0,<1.30.0" prowler
 
       - name: Configure AWS Credentials
@@ -28,33 +28,29 @@ jobs:
           aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
           aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
-          aws configure set region us-east-1  # Change this to your desired region
+          aws configure set region us-east-1
 
       - name: Run Prowler Scan
+        id: prowler_scan
         run: |
-          set -e  # Exit immediately if a command exits with a non-zero status
-          for check in check135; do  # You can add more checks if needed
-            echo "Running check: $check"
-            if timeout 300 prowler aws -c "$check" --output-formats json-asff --output-formats csv --verbose > "report_$check.txt" 2> "error_$check.log"; then
-              echo "Check $check completed successfully."
-            else
-              echo "Check $check failed. See error log for details:"
-              cat "error_$check.log"  # Output the error log for troubleshooting
-              exit 1
-            fi
-          done
-          echo "All scans complete, generated reports:"
-          ls -l report_*.txt prowler-output-*.json prowler-output-*.csv  # List generated report files
+          set -e
+          report_file="report_check135.txt"
+          error_file="error_check135.log"
+          echo "Running check: check135"
+          if timeout 300 prowler aws -c check135 --output-formats json-asff --output-formats csv --verbose > "$report_file" 2> "$error_file"; then
+            echo "Check check135 completed successfully."
+            echo "scan_status=success" >> $GITHUB_ENV
+          else
+            echo "Check check135 failed. See error log for details:"
+            cat "$error_file"
+            echo "scan_status=failed" >> $GITHUB_ENV
+            exit 1
+          fi
 
       - name: Send Reports to Slack
+        if: env.scan_status == 'failed'
         run: |
-          if ls report_*.txt 1> /dev/null 2>&1; then
-            for report in report_*.txt; do
-              content=$(<"$report")  # Read file content
-              curl -X POST -H 'Content-type: application/json' --data "{
-                \"text\": \"*Prowler Alert: Vulnerabilities Detected for ${report}*\\n\`\`\`${content}\`\`\`\"
-              }" "${{ secrets.SLACK_WEBHOOK_URL }}"
-            done
-          else
-            echo "No report files found to send to Slack."
-          fi
+          content=$(<report_check135.txt)
+          curl -X POST -H 'Content-type: application/json' --data "{
+            \"text\": \"*Prowler Alert: Vulnerabilities Detected for report_check135.txt*\\n\`\`\`${content}\`\`\`\"
+          }" "${{ secrets.SLACK_WEBHOOK_URL }}"
