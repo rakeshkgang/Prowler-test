@@ -37,11 +37,12 @@ jobs:
           report_file_json="report_all_checks.json"
           report_file_csv="report_all_checks.csv"
           error_file="error_all_checks.log"
+          
           echo "Running all checks..."
           if timeout 300 prowler aws -c all --output-formats json-asff --output-formats csv --verbose > "$report_file_json" 2> "$error_file"; then
-            # Create CSV report separately
-            prowler aws -c all --output-formats csv >> "$report_file_csv"
             echo "All checks completed successfully."
+            # Generate the CSV report and append to the report file
+            prowler aws -c all --output-formats csv >> "$report_file_csv"
             echo "scan_status=success" >> $GITHUB_ENV
           else
             echo "Checks failed. See error log for details:"
@@ -54,13 +55,13 @@ jobs:
         if: env.scan_status == 'success'
         run: |
           # Prepare JSON report content
-          content_json=$(<report_all_checks.json)
-          content_csv=$(<report_all_checks.csv)
+          content_json=$(<"$report_file_json")
+          content_csv=$(<"$report_file_csv")
           
           echo "Sending reports to Slack..."
 
           # Prepare the JSON payload
-          payload=$(jq -n --arg text "*Prowler Scan Report for all checks*\n\n*JSON Report:*\n\`\`\`$content_json\`\`\`\n\n*CSV Report:*\n\`\`\`$content_csv\`\`\`" '{text: $text}')
+          payload=$(jq -n --arg text "*Prowler Scan Report for All Checks*\n\n*JSON Report:*\n\`\`\`$content_json\`\`\`\n\n*CSV Report:*\n\`\`\`$content_csv\`\`\`" '{text: $text}')
 
           response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-type: application/json' --data "$payload" "${{ secrets.SLACK_WEBHOOK_URL }}")
 
