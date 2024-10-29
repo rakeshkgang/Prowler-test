@@ -34,14 +34,17 @@ jobs:
         id: prowler_scan
         run: |
           set -e
-          report_file="report_check135.txt"
-          error_file="error_check135.log"
-          echo "Running check: check135"
-          if timeout 300 prowler aws -c check135 --output-formats json-asff --output-formats csv --verbose > "$report_file" 2> "$error_file"; then
-            echo "Check check135 completed successfully."
+          report_file_json="report_all_checks.json"
+          report_file_csv="report_all_checks.csv"
+          error_file="error_all_checks.log"
+          echo "Running all checks..."
+          if timeout 300 prowler aws -c all --output-formats json-asff --output-formats csv --verbose > "$report_file_json" 2> "$error_file"; then
+            # Create CSV report separately
+            prowler aws -c all --output-formats csv >> "$report_file_csv"
+            echo "All checks completed successfully."
             echo "scan_status=success" >> $GITHUB_ENV
           else
-            echo "Check check135 failed. See error log for details:"
+            echo "Checks failed. See error log for details:"
             cat "$error_file"
             echo "scan_status=failed" >> $GITHUB_ENV
             exit 1
@@ -50,11 +53,14 @@ jobs:
       - name: Send Reports to Slack
         if: env.scan_status == 'success'
         run: |
-          content=$(<report_check135.txt)
-          echo "Sending report to Slack..."
+          # Prepare JSON report content
+          content_json=$(<report_all_checks.json)
+          content_csv=$(<report_all_checks.csv)
           
+          echo "Sending reports to Slack..."
+
           # Prepare the JSON payload
-          payload=$(jq -n --arg text "*Prowler Scan Report for check135\n\`\`\`$content\`\`\`" '{text: $text}')
+          payload=$(jq -n --arg text "*Prowler Scan Report for all checks*\n\n*JSON Report:*\n\`\`\`$content_json\`\`\`\n\n*CSV Report:*\n\`\`\`$content_csv\`\`\`" '{text: $text}')
 
           response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-type: application/json' --data "$payload" "${{ secrets.SLACK_WEBHOOK_URL }}")
 
@@ -62,5 +68,5 @@ jobs:
             echo "Failed to send report to Slack. HTTP status code: $response"
             exit 1
           else
-            echo "Report sent to Slack successfully."
+            echo "Reports sent to Slack successfully."
           fi
