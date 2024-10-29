@@ -3,12 +3,12 @@ name: Prowler Security Scan
 on:
   push:
     branches:
-      - main  # Change this to your default branch if needed
+      - main
   workflow_dispatch:
 
 jobs:
   prowler:
-    runs-on: ubuntu-22.04  # Use a specific version for better compatibility
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout Code
@@ -28,7 +28,7 @@ jobs:
           aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
           aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
-          
+        
 
       - name: Run Prowler Scan
         id: prowler_scan
@@ -48,12 +48,9 @@ jobs:
           fi
 
       - name: Send Reports to Slack
-        if: env.scan_status == 'success'  # Adjust this based on your logic
         run: |
           content=$(<report_check135.txt)
           echo "Sending report to Slack..."
           curl -X POST -H 'Content-type: application/json' --data "{
             \"text\": \"*Prowler Scan Report for check135*\\n\`\`\`${content}\`\`\`"
           }" "${{ secrets.SLACK_WEBHOOK_URL }}"
-
-
