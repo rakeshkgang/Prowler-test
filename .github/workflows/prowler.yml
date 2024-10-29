@@ -23,29 +23,13 @@ jobs:
           pip install --upgrade pip
           pip install prowler
           pip install "pyOpenSSL>=22.0.0" "urllib3>=1.26.0"
-          # Install AWS CLI
-          sudo apt-get update
-          sudo apt-get install -y awscli
 
       - name: Configure AWS Credentials
         run: |
           aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
           aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
-
-      - name: Verify AWS Credentials
-        run: |
-          echo "Verifying AWS Credentials..."
-          aws sts get-caller-identity --output json || { echo "Failed to get caller identity"; exit 1; }
-          aws configure list || { echo "Failed to list AWS configuration"; exit 1; }
-
-      - name: Debug AWS Environment
-        run: |
-          echo "AWS_ACCESS_KEY_ID is set: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}"
-          echo "AWS_SECRET_ACCESS_KEY is set: ${{ secrets.AWS_SECRET_ACCESS_KEY != '' }}"
-
-      - name: Check AWS CLI Version
-        run: aws --version
+          aws configure set region eu-north-1  # Ensure this is your desired region
 
       - name: Run Prowler Scan
         id: prowler_scan
@@ -57,18 +41,8 @@ jobs:
           error_file="error_all_checks.log"
 
           echo "Running all checks..."
-          
-          # Export AWS credentials to the environment for Prowler
-          export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-          export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-          export AWS_SESSION_TOKEN="${{ secrets.AWS_SESSION_TOKEN }}"
-
-          # Print current directory and list files for debugging
-          pwd
-          ls -l
-
           if timeout 300 prowler aws -c all --output-formats json-ocsf --output-filename "$report_file_json" --verbose > "$error_file"; then
-            # Run CSV output as well
+            # Run CSV output as well, even if JSON output has no findings
             prowler aws -c all --output-formats csv --output-filename "$report_file_csv" || true
             
             # Check if report files were created
@@ -106,16 +80,8 @@ jobs:
             fi
           }
 
-          # Check and send JSON report file
-          if [[ -f "${report_file_json}" ]]; then
-            send_file_to_slack "${report_file_json}" "Prowler Scan JSON Report"
-          else
-            echo "JSON report file not found. Skipping."
-          fi
+          # Send JSON report file
+          send_file_to_slack "${report_file_json}" "Prowler Scan JSON Report"
 
-          # Check and send CSV report file
-          if [[ -f "${report_file_csv}" ]]; then
-            send_file_to_slack "${report_file_csv}" "Prowler Scan CSV Report"
-          else
-            echo "CSV report file not found. Skipping."
-          fi
+          # Send CSV report file
+          send_file_to_slack "${report_file_csv}" "Prowler Scan CSV Report"
