@@ -61,13 +61,14 @@ jobs:
       - name: Upload Reports to S3
         if: env.scan_status == 'success'
         run: |
+          # Use the same report prefix defined in the previous step
           report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
           report_file_json="${report_prefix}.ocsf.json"
           report_file_csv="${report_prefix}.csv"
 
-          # Check if files exist before uploading
-          if [[ ! -f "$report_file_json" || ! -f "$report_file_csv" ]]; then
-            echo "One or both report files do not exist."
+          # Check if files exist and are not empty before uploading
+          if [[ ! -f "$report_file_json" || ! -s "$report_file_json" || ! -f "$report_file_csv" || ! -s "$report_file_csv" ]]; then
+            echo "One or both report files do not exist or are empty."
             exit 1
           fi
 
