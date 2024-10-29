@@ -48,8 +48,11 @@ jobs:
           fi
 
       - name: Send Reports to Slack
+        if: env.scan_status == 'success'  # Change to 'success' or 'failed' as needed
         run: |
           content=$(<report_check135.txt)
+          echo "Sending report to Slack..."
           curl -X POST -H 'Content-type: application/json' --data "{
             \"text\": \"*Prowler Scan Report for check135*\\n\`\`\`${content}\`\`\`"
           }" "${{ secrets.SLACK_WEBHOOK_URL }}"
+
