@@ -22,7 +22,7 @@ jobs:
         run: |
           pip install --upgrade pip  # Upgrade pip to the latest version
           pip install "boto3>=1.26.17,<1.27.0" "botocore>=1.29.0,<1.30.0" prowler 
-          
+
       - name: Configure AWS Credentials
         run: |
           aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
@@ -35,7 +35,7 @@ jobs:
           set -e  # Exit immediately if a command exits with a non-zero status
           for check in check135; do  # You can add more checks if needed
             echo "Running check: $check"
-            if timeout 300 prowler aws -c "$check" --output-formats json-asff --output-formats csv > "report_$check.txt" 2> "error_$check.log"; then
+            if timeout 300 prowler aws -c "$check" --output-formats json-asff,csv > "report_$check.txt" 2> "error_$check.log"; then
               echo "Check $check completed successfully."
             else
               echo "Check $check failed. See error log for details:"
