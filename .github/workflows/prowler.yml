@@ -48,7 +48,7 @@ jobs:
           fi
 
       - name: Send Reports to Slack
-        if: env.scan_status == 'success'  # This should match the desired scan status
+        if: env.scan_status == 'success'  # Adjust this based on your logic
         run: |
           content=$(<report_check135.txt)
           echo "Sending report to Slack..."
