@@ -62,6 +62,10 @@ jobs:
           report_file_json="${report_prefix}.ocsf.json"
           report_file_csv="${report_prefix}.csv"
 
+          # List files before checking existence
+          echo "Listing files in current directory before upload:"
+          ls -l
+
           # Check if files exist before uploading
           if [[ ! -f "$report_file_json" || ! -f "$report_file_csv" ]]; then
             echo "One or both report files do not exist."
