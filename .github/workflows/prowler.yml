@@ -42,7 +42,7 @@ jobs:
 
           echo "Running all checks..."
           if timeout 300 prowler aws -c all --output-formats json-ocsf --output-filename "$report_file_json" --verbose > "$error_file"; then
-            # Run CSV output as well, even if JSON output has no findings
+            # Run CSV output as well
             prowler aws -c all --output-formats csv --output-filename "$report_file_csv" || true
             
             # Check if report files were created
@@ -80,8 +80,16 @@ jobs:
             fi
           }
 
-          # Send JSON report file
-          send_file_to_slack "${report_file_json}" "Prowler Scan JSON Report"
+          # Check and send JSON report file
+          if [[ -f "${report_file_json}" ]]; then
+            send_file_to_slack "${report_file_json}" "Prowler Scan JSON Report"
+          else
+            echo "JSON report file not found. Skipping."
+          fi
 
-          # Send CSV report file
-          send_file_to_slack "${report_file_csv}" "Prowler Scan CSV Report"
+          # Check and send CSV report file
+          if [[ -f "${report_file_csv}" ]]; then
+            send_file_to_slack "${report_file_csv}" "Prowler Scan CSV Report"
+          else
+            echo "CSV report file not found. Skipping."
+          fi
