@@ -47,7 +47,7 @@ jobs:
         run: |
           if ls report_*.txt 1> /dev/null 2>&1; then
             for report in report_*.txt; do
-              content=$(cat "$report")
+              content=$(<"$report")  # Read file content
               curl -X POST -H 'Content-type: application/json' --data "{
                 \"text\": \"*Prowler Alert: Vulnerabilities Detected for ${report}*\\n\`\`\`${content}\`\`\`\"
               }" "${{ secrets.SLACK_WEBHOOK_URL }}"
