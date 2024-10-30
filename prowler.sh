@@ -2,7 +2,7 @@
 
 # Variables
 OUTPUT_DIR="./prowler-reports"  # Directory to store reports
-SLACK_WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"  # Fetch from GitHub Secrets
+SLACK_WEBHOOK_URL="$SLACK_WEBHOOK_URL"  # Fetch from environment variable
 
 # Get AWS Account ID
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null)
@@ -29,8 +29,8 @@ if [ -f "$REPORT_PATH" ]; then
     curl -F file=@"$REPORT_PATH" \
          -F "initial_comment=AWS Security Report for Account ID: $ACCOUNT_ID" \
          -F channels=#your-channel \
-         -H "Authorization: Bearer ${{ secrets.SLACK_BEARER_TOKEN }}" \
-         $SLACK_WEBHOOK_URL
+         -H "Authorization: Bearer $SLACK_BEARER_TOKEN" \
+         "$SLACK_WEBHOOK_URL"
          
     if [[ $? -eq 0 ]]; then
         echo "Report sent to Slack!"
