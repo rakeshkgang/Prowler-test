@@ -1,33 +1,27 @@
 name: Prowler Scan
 
 on:
-  push:  # Trigger on push to any branch
+  push:  # Triggers on code pushes
     branches:
-      - main  # Adjust to your default branch if different
-  workflow_dispatch:  # Allows manual triggering
+      - main  # Change this to your default branch if necessary
+  workflow_dispatch:  # Allows manual trigger from the GitHub UI
 
 jobs:
-  prowler:
+  prowler-scan:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v2
 
-      - name: Clone Prowler
-        run: git clone https://github.com/salesforce/prowler.git
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
-
-      - name: Install dependencies
+      - name: Set Up AWS CLI
         run: |
-          python -m pip install --upgrade pip
-          pip install requests
+          sudo apt-get install -y awscli
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set default.region us-east-1
 
-      - name: Run Prowler scan
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # Slack webhook if needed
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}      # Slack bot token
-        run: python python.py  # Path to your Python script
+      - name: Run Prowler
+        run: |
+          chmod +x ./run_prowler.sh
+          ./run_prowler.sh
