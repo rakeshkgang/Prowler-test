@@ -1,6 +1,9 @@
 name: Prowler Scan
 
 on:
+  push:  # Trigger on push to any branch
+    branches:
+      - main  # Adjust to your default branch if different
   workflow_dispatch:  # Allows manual triggering
 
 jobs:
@@ -9,6 +12,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+
+      - name: Clone Prowler
+        run: git clone https://github.com/salesforce/prowler.git
 
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -24,4 +30,4 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # Slack webhook if needed
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}      # Slack bot token
-        run: python python.py  # Use the correct relative path
+        run: python python.py  # Path to your Python script

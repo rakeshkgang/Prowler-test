@@ -5,7 +5,7 @@ from datetime import datetime
 
 # Configuration
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
-SLACK_BOT_TOKEN = os.getenv('SLACK_BOT_TOKEN')  # Access the bot token from secrets
+SLACK_BOT_TOKEN = os.getenv('SLACK_BOT_TOKEN')
 PROWLER_OUTPUT_DIR = 'prowler-output'
 SCAN_TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
 
@@ -14,7 +14,9 @@ def run_prowler():
 
     json_report_path = f"{PROWLER_OUTPUT_DIR}/prowler_report_{SCAN_TIMESTAMP}.json"
     csv_report_path = f"{PROWLER_OUTPUT_DIR}/prowler_report_{SCAN_TIMESTAMP}.csv"
-    command = f"./prowler/prowler.sh -M json,csv -o {PROWLER_OUTPUT_DIR}/prowler_report_{SCAN_TIMESTAMP}"
+    
+    # Command to run Prowler (assuming prowler.sh is in the Prowler directory)
+    command = f"./Prowler/prowler.sh -M json,csv -o {PROWLER_OUTPUT_DIR}/prowler_report_{SCAN_TIMESTAMP}"
 
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
@@ -31,7 +33,7 @@ def send_file_to_slack(file_path):
             "https://slack.com/api/files.upload",
             headers={'Authorization': f'Bearer {SLACK_BOT_TOKEN}'},
             files={'file': file},
-            data={'channels': '#prowler-test'}, 
+            data={'channels': '#your-channel'},  # Replace with your channel name
         )
 
     if response.status_code != 200:
