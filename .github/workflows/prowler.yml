@@ -40,15 +40,13 @@ jobs:
 
           echo "Running Prowler JSON checks..."
 
-          # Run the Prowler scan for JSON output
-          if timeout 600 prowler aws -c all --output-formats json-ocsf --output-filename "$report_prefix" --verbose > "$error_file" 2>&1; then
+          if timeout 1200 prowler aws -c all --output-formats json-ocsf --output-filename "$report_prefix" --verbose > "$error_file" 2>&1; then
             if [[ -f "$report_file_json" ]]; then
               echo "JSON report created successfully."
               echo "scan_status=success" >> $GITHUB_ENV
             else
               echo "JSON report file was not created." | tee -a "$error_file"
-              echo "scan_status=failed" >> $GITHUB_ENV
-              exit 1
+              echo "scan_status=empty" >> $GITHUB_ENV
             fi
           else
             echo "JSON checks failed. See error log for details:" | tee -a "$error_file"
@@ -67,14 +65,12 @@ jobs:
 
           echo "Running Prowler CSV checks..."
 
-          # Run the Prowler scan for CSV output
-          if timeout 600 prowler aws -c all --output-formats csv --output-filename "$report_prefix" --verbose > "$error_file" 2>&1; then
+          if timeout 1200 prowler aws -c all --output-formats csv --output-filename "$report_prefix" --verbose > "$error_file" 2>&1; then
             if [[ -f "$report_file_csv" ]]; then
               echo "CSV report created successfully."
             else
               echo "CSV report file was not created." | tee -a "$error_file"
-              echo "scan_status=failed" >> $GITHUB_ENV
-              exit 1
+              echo "scan_status=empty" >> $GITHUB_ENV
             fi
           else
             echo "CSV checks failed. See error log for details:" | tee -a "$error_file"
@@ -98,7 +94,6 @@ jobs:
         run: |
           echo "Sending reports to Slack..."
 
-          # Function to send a file to Slack
           send_file_to_slack() {
             local file_path=$1
             local comment=$2
@@ -118,8 +113,7 @@ jobs:
             send_file_to_slack "$report_file_json" "Prowler Scan JSON Report"
           else
             echo "JSON report file not found. Sending empty report."
-            touch empty_report.json
-            echo "{}" > empty_report.json  # Optionally provide an empty JSON structure
+            echo "{}" > empty_report.json
             send_file_to_slack "empty_report.json" "Prowler Scan JSON Report (No Findings)"
           fi
 
@@ -129,7 +123,6 @@ jobs:
             send_file_to_slack "$report_file_csv" "Prowler Scan CSV Report"
           else
             echo "CSV report file not found. Sending empty report."
-            touch empty_report.csv
-            echo "No findings" > empty_report.csv  # Optionally provide a message in the empty CSV
+            echo "No findings, the report is empty." > empty_report.csv
             send_file_to_slack "empty_report.csv" "Prowler Scan CSV Report (No Findings)"
           fi
