@@ -24,4 +24,4 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # Slack webhook if needed
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}      # Slack bot token
-        run: python rakeshkgang/Prowler-test/python.py  # Updated path to your script
+        run: python python.py  # Use the correct relative path
