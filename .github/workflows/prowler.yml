@@ -1,10 +1,10 @@
 name: Prowler Scan
 
 on:
-  push:  # Triggers on code pushes
+  push:
     branches:
-      - main  # Change this to your default branch if necessary
-  workflow_dispatch:  # Allows manual trigger from the GitHub UI
+      - main
+  workflow_dispatch:
 
 jobs:
   prowler-scan:
@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
+
+      - name: List Files
+        run: ls -la  # Verify the files present
 
       - name: Set Up AWS CLI
         run: |
@@ -23,5 +26,5 @@ jobs:
 
       - name: Run Prowler
         run: |
-          chmod +x ./run_prowler.sh
-          ./run_prowler.sh
+          chmod +x ./prowler.sh
+          ./prowler.sh
