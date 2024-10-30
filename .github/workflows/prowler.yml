@@ -90,29 +90,22 @@ jobs:
             cat error_csv.log
           fi
 
-      - name: Verify Slack Bot Membership
+      - name: Send Reports to Slack via Webhook
         run: |
-          response=$(curl -s -X GET "https://slack.com/api/conversations.members?channel=${{ secrets.SLACK_CHANNEL_ID }}" -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}")
-          if [[ $(echo "$response" | jq -r '.ok') == "true" ]]; then
-            echo "Slack bot is a member of the channel."
-          else
-            echo "Slack bot is not a member of the channel or an error occurred: $(echo "$response" | jq -r '.error')"
-            exit 1
-          fi
-
-      - name: Send Reports to Slack
-        run: |
-          echo "Sending reports to Slack..."
+          echo "Sending reports to Slack via webhook..."
 
           send_file_to_slack() {
             local file_path=$1
             local comment=$2
-            local response=$(curl -s -F file=@${file_path} -F "initial_comment=${comment}" -F channels=${{ secrets.SLACK_CHANNEL_ID }} -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" https://slack.com/api/files.upload)
+            local webhook_url="${{ secrets.SLACK_WEBHOOK_URL }}"
+            local payload=$(jq -n --arg text "$comment" '{text: $text}')
+            
+            # Send message to Slack
+            curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$webhook_url"
 
-            if [[ $(echo "$response" | jq -r '.ok') != "true" ]]; then
-              echo "Failed to send ${comment}: $(echo "$response" | jq -r '.error')"
-            else
-              echo "${comment} sent to Slack successfully."
+            # Upload file if it exists
+            if [[ -f "$file_path" ]]; then
+              curl -F file=@${file_path} -F "initial_comment=${comment}" -F channels=${{ secrets.SLACK_CHANNEL_ID }} "$webhook_url"
             fi
           }
 
