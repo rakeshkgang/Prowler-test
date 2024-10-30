@@ -83,8 +83,21 @@ jobs:
         if: failure()
         run: |
           echo "Error Log Contents:"
+          if [[ -f error_json.log ]]; then
+            cat error_json.log
+          fi
           if [[ -f error_csv.log ]]; then
             cat error_csv.log
+          fi
+
+      - name: Verify Slack Bot Membership
+        run: |
+          response=$(curl -s -X GET "https://slack.com/api/conversations.members?channel=${{ secrets.SLACK_CHANNEL_ID }}" -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}")
+          if [[ $(echo "$response" | jq -r '.ok') == "true" ]]; then
+            echo "Slack bot is a member of the channel."
+          else
+            echo "Slack bot is not a member of the channel or an error occurred: $(echo "$response" | jq -r '.error')"
+            exit 1
           fi
 
       - name: Send Reports to Slack
