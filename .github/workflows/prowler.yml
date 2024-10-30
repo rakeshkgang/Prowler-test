@@ -1,4 +1,4 @@
-name: Prowler Scan and Notifications
+name: Prowler Security Scan
 
 on:
   push:
@@ -7,47 +7,105 @@ on:
   workflow_dispatch:
 
 jobs:
-  prowler-scan:
-    runs-on: ubuntu-latest
+  prowler:
+    runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Set Up AWS CLI
+      - name: Clean Environment
         run: |
-          sudo apt-get update
-          sudo apt-get install -y awscli
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set aws_session_token ${{ secrets.AWS_SESSION_TOKEN }}  # Optional
+          pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL urllib3 || true
 
-      - name: Test AWS CLI Configuration
+      - name: Install Prowler and Dependencies
         run: |
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          echo "AWS Account ID: $ACCOUNT_ID"
+          pip install --upgrade pip
+          pip install prowler
+          pip install "pyOpenSSL>=22.0.0" "urllib3>=1.26.0"
 
-      - name: Run Prowler
+      - name: Configure AWS Credentials
         run: |
-          mkdir -p ./prowler-reports
-          ./prowler -M json -o ./prowler-reports/report.json
+          aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
+          aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
 
-      - name: Check for Vulnerabilities and Notify Slack
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      - name: Run Prowler Scan
+        id: prowler_scan
         run: |
-          if [ -f "./prowler-reports/report.json" ]; then
-              VULNERABILITIES=$(jq '.[] | select(.result == "FAIL")' ./prowler-reports/report.json)
+          set -e
+          report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
+          report_file_json="${report_prefix}.ocsf.json"
+          report_file_csv="${report_prefix}.csv"
+          error_file="error_all_checks.log"
 
-              if [ -n "$VULNERABILITIES" ]; then
-                  curl -X POST -H 'Content-type: application/json' --data '{
-                      "text": "🚨 Prowler Scan Alert! Vulnerabilities Detected:\n'"$VULNERABILITIES"'"
-                  }' $SLACK_WEBHOOK_URL
-                  echo "Alert sent to Slack!"
-              else
-                  echo "No vulnerabilities detected."
-              fi
-          else
-              echo "Report generation failed!"
+          echo "Running all checks..."
+
+          export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+          export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          export AWS_SESSION_TOKEN="${{ secrets.AWS_SESSION_TOKEN }}"
+
+          if timeout 600 prowler aws -c all --output-formats json-ocsf --output-filename "$report_file_json" --verbose > "$error_file"; then
+            prowler aws -c all --output-formats csv --output-filename "$report_file_csv" || true
+            
+            if [[ -f "$report_file_json" && -f "$report_file_csv" ]]; then
+              echo "All checks completed successfully."
+              echo "scan_status=success" >> $GITHUB_ENV
+            else
+              echo "One or both report files were not created." | tee -a "$error_file"
+              echo "scan_status=failed" >> $GITHUB_ENV
               exit 1
+            fi
+          else
+            echo "Checks failed. See error log for details:" | tee -a "$error_file"
+            cat "$error_file"
+            echo "scan_status=failed" >> $GITHUB_ENV
+            exit 1
+          fi
+
+      - name: Show Error Log
+        if: failure()
+        run: |
+          echo "Error Log Contents:"
+          cat error_all_checks.log
+
+      - name: Send Failure Notification to Slack
+        if: env.scan_status == 'failed'
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data '{
+            "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
+            "text": "Prowler scan failed. Check the logs for details."
+          }' https://slack.com/api/chat.postMessage -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}"
+
+      - name: Send Reports to Slack
+        if: env.scan_status == 'success'
+        run: |
+          echo "Sending reports to Slack..."
+
+          # Function to send a file to Slack
+          send_file_to_slack() {
+            local file_path=$1
+            local comment=$2
+            local response=$(curl -s -F file=@${file_path} -F "initial_comment=${comment}" -F channels=${{ secrets.SLACK_CHANNEL_ID }} -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" https://slack.com/api/files.upload)
+
+            if [[ $(echo "$response" | jq -r '.ok') != "true" ]]; then
+              echo "Failed to send ${comment}: $(echo "$response" | jq -r '.error')"
+              exit 1
+            else
+              echo "${comment} sent to Slack successfully."
+            fi
+          }
+
+          # Check and send JSON report file
+          if [[ -f "${report_file_json}" ]]; then
+            send_file_to_slack "${report_file_json}" "Prowler Scan JSON Report"
+          else
+            echo "JSON report file not found. Skipping."
+          fi
+
+          # Check and send CSV report file
+          if [[ -f "${report_file_csv}" ]]; then
+            send_file_to_slack "${report_file_csv}" "Prowler Scan CSV Report"
+          else
+            echo "CSV report file not found. Skipping."
           fi
