@@ -65,7 +65,7 @@ jobs:
 
           echo "Running Prowler CSV checks..."
 
-          if timeout 1200 prowler aws -c all --output-formats csv --output-filename "$report_prefix" --verbose > "$error_file" 2>&1; then
+          if timeout 2400 prowler aws -c all --output-formats csv --output-filename "$report_prefix" --verbose > "$error_file" 2>&1; then
             if [[ -f "$report_file_csv" ]]; then
               echo "CSV report created successfully."
             else
@@ -83,9 +83,6 @@ jobs:
         if: failure()
         run: |
           echo "Error Log Contents:"
-          if [[ -f error_json.log ]]; then
-            cat error_json.log
-          fi
           if [[ -f error_csv.log ]]; then
             cat error_csv.log
           fi
@@ -101,7 +98,6 @@ jobs:
 
             if [[ $(echo "$response" | jq -r '.ok') != "true" ]]; then
               echo "Failed to send ${comment}: $(echo "$response" | jq -r '.error')"
-              exit 1
             else
               echo "${comment} sent to Slack successfully."
             fi
