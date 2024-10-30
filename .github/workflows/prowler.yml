@@ -1,106 +1,27 @@
-name: Prowler Security Scan
+name: Prowler Scan
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   prowler:
-    runs-on: ubuntu-22.04
-
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Clean Environment
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
         run: |
-          pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL urllib3 || true
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - name: Install Prowler and Dependencies
-        run: |
-          pip install --upgrade pip
-          pip install prowler
-          pip install "pyOpenSSL>=22.0.0" "urllib3>=1.26.0"
-
-      - name: Configure AWS Credentials
-        run: |
-          aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
-          aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-          aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
-
-      - name: Run Prowler Scan
-        id: prowler_scan
-        run: |
-          set -e
-          report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
-          report_file_json="${report_prefix}.ocsf.json"
-          report_file_csv="${report_prefix}.csv"
-          error_file="error_all_checks.log"
-
-          echo "Running all checks..."
-          
-          # Export AWS credentials for Prowler
-          export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-          export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-          export AWS_SESSION_TOKEN="${{ secrets.AWS_SESSION_TOKEN }}"
-
-          if timeout 600 prowler aws -c all --output-formats json-ocsf --output-filename "$report_file_json" --verbose > "$error_file"; then
-            # Run CSV output as well
-            prowler aws -c all --output-formats csv --output-filename "$report_file_csv" || true
-            
-            # Check if report files were created
-            if [[ -f "$report_file_json" && -f "$report_file_csv" ]]; then
-              echo "All checks completed successfully."
-              echo "scan_status=success" >> $GITHUB_ENV
-            else
-              echo "One or both report files were not created."
-              echo "scan_status=failed" >> $GITHUB_ENV
-              exit 1
-            fi
-          else
-            echo "Checks failed. See error log for details:"
-            cat "$error_file"  # Print the contents of the error log
-            echo "scan_status=failed" >> $GITHUB_ENV
-            exit 1
-          fi
-
-      - name: Show Error Log
-        if: failure()
-        run: |
-          echo "Error Log Contents:"
-          cat error_all_checks.log
-
-      - name: Send Reports to Slack
-        if: env.scan_status == 'success'
-        run: |
-          echo "Sending reports to Slack..."
-
-          # Function to send a file to Slack
-          send_file_to_slack() {
-            local file_path=$1
-            local comment=$2
-            local response=$(curl -s -F file=@${file_path} -F "initial_comment=${comment}" -F channels=${{ secrets.SLACK_CHANNEL_ID }} -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" https://slack.com/api/files.upload)
-
-            if [[ $(echo "$response" | jq -r '.ok') != "true" ]]; then
-              echo "Failed to send ${comment}: $(echo "$response" | jq -r '.error')"
-              exit 1
-            else
-              echo "${comment} sent to Slack successfully."
-            fi
-          }
-
-          # Check and send JSON report file
-          if [[ -f "${report_file_json}" ]]; then
-            send_file_to_slack "${report_file_json}" "Prowler Scan JSON Report"
-          else
-            echo "JSON report file not found. Skipping."
-          fi
-
-          # Check and send CSV report file
-          if [[ -f "${report_file_csv}" ]]; then
-            send_file_to_slack "${report_file_csv}" "Prowler Scan CSV Report"
-          else
-            echo "CSV report file not found. Skipping."
-          fi
+      - name: Run Prowler scan
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # Slack webhook if needed
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}      # Slack bot token
+        run: python rakeshkgang/Prowler-test/python.py  # Updated path to your script
