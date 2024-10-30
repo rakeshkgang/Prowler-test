@@ -35,18 +35,16 @@ jobs:
         run: |
           set -e
           report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
-          report_file_json="${report_prefix}.ocsf.json"
-          report_file_csv="${report_prefix}.csv"
           error_file="error_all_checks.log"
 
           echo "Running all checks..."
 
           # Run the Prowler scan
-          if timeout 600 prowler aws -c all --output-formats json-ocsf --output-filename "$report_file_json" --verbose > "$error_file" 2>&1; then
-            # Run CSV output as well
-            prowler aws -c all --output-formats csv --output-filename "$report_file_csv" || true
-            
+          if timeout 1200 prowler aws -c all --output-formats json-ocsf,csv --output-filename "$report_prefix" --verbose > "$error_file" 2>&1; then
             # Check if report files were created
+            report_file_json="${report_prefix}.ocsf.json"
+            report_file_csv="${report_prefix}.csv"
+
             if [[ -f "$report_file_json" && -f "$report_file_csv" ]]; then
               echo "All checks completed successfully."
               echo "scan_status=success" >> $GITHUB_ENV
@@ -92,6 +90,7 @@ jobs:
           }
 
           # Check and send JSON report file
+          report_file_json="${report_prefix}.ocsf.json"
           if [[ -f "${report_file_json}" ]]; then
             send_file_to_slack "${report_file_json}" "Prowler Scan JSON Report"
           else
@@ -99,6 +98,7 @@ jobs:
           fi
 
           # Check and send CSV report file
+          report_file_csv="${report_prefix}.csv"
           if [[ -f "${report_file_csv}" ]]; then
             send_file_to_slack "${report_file_csv}" "Prowler Scan CSV Report"
           else
