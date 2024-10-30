@@ -36,22 +36,16 @@ jobs:
           set -e
           report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
           report_file_json="${report_prefix}.ocsf.json"
+          report_file_csv="${report_prefix}.csv"
           error_file="error_json.log"
 
           echo "Running Prowler JSON checks..."
 
           if timeout 1200 prowler aws -c all --output-formats json-ocsf --output-filename "$report_prefix" --verbose > "$error_file" 2>&1; then
-            if [[ -f "$report_file_json" ]]; then
-              echo "JSON report created successfully."
-              echo "scan_status=success" >> $GITHUB_ENV
-            else
-              echo "JSON report file was not created." | tee -a "$error_file"
-              echo "scan_status=empty" >> $GITHUB_ENV
-            fi
+            echo "JSON report created successfully."
           else
             echo "JSON checks failed. See error log for details:" | tee -a "$error_file"
             cat "$error_file"
-            echo "scan_status=failed" >> $GITHUB_ENV
             exit 1
           fi
 
@@ -66,16 +60,10 @@ jobs:
           echo "Running Prowler CSV checks..."
 
           if timeout 2400 prowler aws -c all --output-formats csv --output-filename "$report_prefix" --verbose > "$error_file" 2>&1; then
-            if [[ -f "$report_file_csv" ]]; then
-              echo "CSV report created successfully."
-            else
-              echo "CSV report file was not created." | tee -a "$error_file"
-              echo "scan_status=empty" >> $GITHUB_ENV
-            fi
+            echo "CSV report created successfully."
           else
             echo "CSV checks failed. See error log for details:" | tee -a "$error_file"
             cat "$error_file"
-            echo "scan_status=failed" >> $GITHUB_ENV
             exit 1
           fi
 
@@ -90,41 +78,23 @@ jobs:
             cat error_csv.log
           fi
 
-      - name: Send Reports to Slack via Webhook
+      - name: Send Reports to Slack
         run: |
-          echo "Sending reports to Slack via webhook..."
+          echo "Sending reports to Slack..."
 
-          send_file_to_slack() {
-            local file_path=$1
-            local comment=$2
-            local webhook_url="${{ secrets.SLACK_WEBHOOK_URL }}"
-            local payload=$(jq -n --arg text "$comment" '{text: $text}')
-            
-            # Send message to Slack
-            curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$webhook_url"
+          report_summary=$(cat error_json.log || echo "No errors in JSON scan.")
+          report_summary+=$'\n\n'
+          report_summary+=$(cat error_csv.log || echo "No errors in CSV scan.")
 
-            # Upload file if it exists
-            if [[ -f "$file_path" ]]; then
-              curl -F file=@${file_path} -F "initial_comment=${comment}" -F channels=${{ secrets.SLACK_CHANNEL_ID }} "$webhook_url"
+          payload=$(jq -n --arg text "$report_summary" '{text: $text}')
+          webhook_url="${{ secrets.SLACK_WEBHOOK_URL }}"
+
+          # Send the report summary to Slack
+          curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$webhook_url"
+
+          # Attach report files if they exist
+          for file in prowler-output-*.ocsf.json prowler-output-*.csv; do
+            if [[ -f "$file" ]]; then
+              curl -F file=@${file} -F "initial_comment=Here is the Prowler report: $file" -F channels=${{ secrets.SLACK_CHANNEL_ID }} "$webhook_url"
             fi
-          }
-
-          # Check and send JSON report file
-          report_file_json="prowler-output-*.ocsf.json"
-          if ls $report_file_json 1> /dev/null 2>&1; then
-            send_file_to_slack "$report_file_json" "Prowler Scan JSON Report"
-          else
-            echo "JSON report file not found. Sending empty report."
-            echo "{}" > empty_report.json
-            send_file_to_slack "empty_report.json" "Prowler Scan JSON Report (No Findings)"
-          fi
-
-          # Check and send CSV report file
-          report_file_csv="prowler-output-*.csv"
-          if ls $report_file_csv 1> /dev/null 2>&1; then
-            send_file_to_slack "$report_file_csv" "Prowler Scan CSV Report"
-          else
-            echo "CSV report file not found. Sending empty report."
-            echo "No findings, the report is empty." > empty_report.csv
-            send_file_to_slack "empty_report.csv" "Prowler Scan CSV Report (No Findings)"
-          fi
+          done
