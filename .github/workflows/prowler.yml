@@ -25,4 +25,4 @@ jobs:
       - name: Run Prowler
         run: |
           chmod +x ./run_prowler.sh
-          ./run_prowler.sh
+          ./prowler.sh
