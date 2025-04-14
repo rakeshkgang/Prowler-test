@@ -21,11 +21,11 @@ jobs:
           role-session-name: github-actions
           aws-region: us-east-1
 
-      - name: Install Prowler Dependencies
+      - name: Install Prowler and Dependencies
         run: |
-          sudo apt-get update
-          sudo apt install zip unzip python3-pip -y
-          python3 -m pip install --upgrade pip
+          pip install --upgrade pip
+          pip install prowler
+          pip install "pyOpenSSL>=22.0.0" "urllib3>=1.26.0"
 
       - name: Clone Prowler
         run: |
