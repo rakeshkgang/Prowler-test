@@ -57,4 +57,13 @@ jobs:
           MONTH=$(date +'%m')
           aws s3 cp /home/runner/work/prowler/prowler/output/ s3://prowler-t/$YEAR/$MONTH/ --recursive
 
-      
+      # # Step 6: Notify Slack (optional)
+      # - name: Notify Slack
+      #   uses: clouddrove/action-slack-notify@1
+      #   if: ${{ success() }}  # Corrected to ensure it's a proper expression
+      #   env:
+      #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      #     SLACK_MESSAGE: "Prowler scan completed successfully for account $ACCOUNT_ID!"
+      #     SLACK_ENV: "Production"
+      #     SLACK_USERNAME: ${{ secrets.SLACK_USERNAME }}
+      #     SLACK_COLOR: "good"
