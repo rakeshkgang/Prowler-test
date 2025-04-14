@@ -57,4 +57,4 @@ jobs:
           MONTH=$(date +'%m')
           aws s3 cp /home/runner/work/prowler/prowler/output/ s3://prowler-t/$YEAR/$MONTH/ --recursive
 
-     
+      
