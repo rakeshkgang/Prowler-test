@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      
+
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -20,25 +20,32 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: github-actions
           aws-region: us-east-1
-         
-      - name: Installing Prowler Dependencies
+
+      - name: Install Prowler Dependencies
         run: |
           sudo apt-get update
           sudo apt install zip unzip python3-pip -y
-          sudo apt remove python3-urllib3 -y
           python3 -m pip install --upgrade pip
-          python3 -m pip install prowler matplotlib pandas numpy requests slack-sdk plotly
-          ulimit -n 4096
-          prowler --version
-        
-      - name: Running Security Audit on AWS
+
+      - name: Clone Prowler
+        run: |
+          git clone https://github.com/prowler-cloud/prowler.git
+
+      - name: Install Prowler Python Requirements
+        run: |
+          cd prowler
+          python3 -m pip install -r requirements.txt
+
+      - name: Run Prowler Security Audit
         env:
           ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
         run: |
+          cd prowler
+          ulimit -n 4096
           for ACCOUNTID in $ACCOUNT_ID; do
           {
-            echo $ACCOUNTID
-            prowler aws \
+            echo "Scanning account: $ACCOUNTID"
+            python3 prowler.py aws \
               --role arn:aws:iam::$ACCOUNTID:role/ProwlerExecRole \
               --output-directory /home/runner/work/prowler/prowler/output \
               --output-modes html csv json-asff \
@@ -46,13 +53,14 @@ jobs:
           }
           done
           aws s3 cp /home/runner/work/prowler/prowler/output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
-           
+
       - name: List Prowler Output
-        run: ls -l /home/runner/work/prowler/prowler/output
+        run: |
+          ls -l /home/runner/work/prowler/prowler/output
 
       - name: Upload Prowler Results to S3
         run: |
-          aws s3 cp /home/runner/work/prowler/prowler/output/ s3://${{ secrets.S3_BUCKET_NAME }}/ --recursive
+          aws s3 cp /home/runner/work/prowler/prowler/output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
 
       - name: Debugging Outputs
         run: |
