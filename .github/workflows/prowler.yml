@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-
+      
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -27,9 +27,9 @@ jobs:
           sudo apt install zip unzip python3-pip git -y
           git clone https://github.com/prowler-cloud/prowler.git
           cd prowler
-          ./prowler --version
+          ./prowler.sh --version
           ulimit -n 4096
-
+        
       - name: Running Security Audit on AWS
         env:
           ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
@@ -38,14 +38,14 @@ jobs:
           for ACCOUNTID in $ACCOUNT_ID; do
           {
             echo $ACCOUNTID
-            ./prowler aws \
+            ./prowler.sh aws \
               --role arn:aws:iam::$ACCOUNTID:role/ProwlerExecRole \
-              --output-directory prowler/output \
+              --output-directory output \
               --output-modes html csv json-asff \
               --ignore-exit-code-3
           }
           done
-          aws s3 cp prowler/output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
+          aws s3 cp output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
            
       - name: List Prowler Output
         run: ls -l prowler/output
