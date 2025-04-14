@@ -88,6 +88,81 @@
 #       #   run: |
 #       #     echo "Verifying S3 bucket contents:"
 #       #     aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}
+# name: Run Prowler and Upload to S3
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+# jobs:
+#   prowler-scan:
+#     runs-on: ubuntu-latest
+
+#     permissions: write-all
+
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
+
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v3
+#         with:
+#           role-to-assume: arn:aws:iam::924144197303:role/github-oidc-terraform-role-21
+#           aws-region: us-east-1
+
+#       - name: Clone prowler
+#         run: git clone https://github.com/prowler-cloud/prowler.git
+
+#       - name: Modify Pydantic Model to Allow Arbitrary Types
+#         run: |
+#           sed -i '/class CIS_Requirement_Attribute_Profile(BaseModel):/a \\n    class Config:\n        arbitrary_types_allowed = True' prowler/prowler/lib/check/compliance_models.py
+#           grep -A 5 'class CIS_Requirement_Attribute_Profile' prowler/prowler/lib/check/compliance_models.py
+
+#       - name: Install Prowler dependencies
+#         run: |
+#           pip install boto3 pydantic==1.10.21 click rich alive-progress detect-secrets tabulate py-ocsf-models slack_sdk tzlocal requests botocore s3transfer kubernetes --upgrade
+
+#       - name: Run Prowler locally
+#         continue-on-error: true
+#         run: |
+#           cd prowler
+#           python3 prowler-cli.py aws -M html,csv,json-asff -S -o output
+
+#           echo "✅ Local Prowler run completed (ignoring exit code)."
+
+#       - name: Running Security Audit on AWS and Upload
+#         continue-on-error: true
+#         env:
+#           ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
+#         run: |
+#           echo "Running Prowler scan against AWS Account: $ACCOUNT_ID"
+          
+#           # Create a date-based folder (optional, but very clean)
+#           export DATE=$(date +%F)
+#           export OUTPUT_DIR="/home/runner/work/prowler/prowler/output"
+
+#           prowler aws \
+#             --role arn:aws:iam::$ACCOUNT_ID:role/ProwlerExecRole \
+#             --output-directory "$OUTPUT_DIR" \
+#             --output-modes html csv json-asff \
+#             --ignore-exit-code-3
+
+#           echo "✅ AWS Prowler scan completed."
+
+#           # List output contents
+#           echo "Prowler output directory contents:"
+#           ls -l "$OUTPUT_DIR"
+
+#           echo "Verifying role assumption with AWS STS:"
+#           aws sts get-caller-identity
+
+#           # Upload findings to S3 under a dated folder (like /2025-04-15/)
+#           echo "Uploading findings to S3 Bucket: ${{ secrets.S3_BUCKET_NAME }} under path: $DATE/"
+#           aws s3 cp "$OUTPUT_DIR" "s3://${{ secrets.S3_BUCKET_NAME }}/$DATE/" --recursive
+
+#           echo "✅ Prowler findings successfully uploaded to S3."
+
 name: Run Prowler and Upload to S3
 
 on:
@@ -99,7 +174,9 @@ jobs:
   prowler-scan:
     runs-on: ubuntu-latest
 
-    permissions: write-all
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -111,55 +188,42 @@ jobs:
           role-to-assume: arn:aws:iam::924144197303:role/github-oidc-terraform-role-21
           aws-region: us-east-1
 
-      - name: Clone prowler
-        run: git clone https://github.com/prowler-cloud/prowler.git
-
-      - name: Modify Pydantic Model to Allow Arbitrary Types
+      - name: Install Prowler via pip
         run: |
-          sed -i '/class CIS_Requirement_Attribute_Profile(BaseModel):/a \\n    class Config:\n        arbitrary_types_allowed = True' prowler/prowler/lib/check/compliance_models.py
-          grep -A 5 'class CIS_Requirement_Attribute_Profile' prowler/prowler/lib/check/compliance_models.py
+          pip install prowler-cloud prowler-cli
 
-      - name: Install Prowler dependencies
-        run: |
-          pip install boto3 pydantic==1.10.21 click rich alive-progress detect-secrets tabulate py-ocsf-models slack_sdk tzlocal requests botocore s3transfer kubernetes --upgrade
-
-      - name: Run Prowler locally
+      - name: Run Prowler locally (Test)
         continue-on-error: true
         run: |
-          cd prowler
-          python3 prowler-cli.py aws -M html,csv,json-asff -S -o output
-
+          prowler aws -M html,csv,json-asff -S -o output
           echo "✅ Local Prowler run completed (ignoring exit code)."
 
       - name: Running Security Audit on AWS and Upload
         continue-on-error: true
         env:
           ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
         run: |
           echo "Running Prowler scan against AWS Account: $ACCOUNT_ID"
-          
-          # Create a date-based folder (optional, but very clean)
+
           export DATE=$(date +%F)
-          export OUTPUT_DIR="/home/runner/work/prowler/prowler/output"
+          export OUTPUT_DIR="output"
 
           prowler aws \
             --role arn:aws:iam::$ACCOUNT_ID:role/ProwlerExecRole \
             --output-directory "$OUTPUT_DIR" \
-            --output-modes html csv json-asff \
+            --output-modes html,csv,json-asff \
             --ignore-exit-code-3
 
           echo "✅ AWS Prowler scan completed."
 
-          # List output contents
           echo "Prowler output directory contents:"
           ls -l "$OUTPUT_DIR"
 
           echo "Verifying role assumption with AWS STS:"
           aws sts get-caller-identity
 
-          # Upload findings to S3 under a dated folder (like /2025-04-15/)
-          echo "Uploading findings to S3 Bucket: ${{ secrets.S3_BUCKET_NAME }} under path: $DATE/"
-          aws s3 cp "$OUTPUT_DIR" "s3://${{ secrets.S3_BUCKET_NAME }}/$DATE/" --recursive
+          echo "Uploading findings to S3 Bucket: $S3_BUCKET_NAME under path: $DATE/"
+          aws s3 cp "$OUTPUT_DIR" "s3://$S3_BUCKET_NAME/$DATE/" --recursive
 
           echo "✅ Prowler findings successfully uploaded to S3."
-
