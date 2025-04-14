@@ -31,6 +31,7 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip3 install prowler
+          pip3 install 'prowler[skip-dashboard]'
       - name: Run Prowler Scan for Single Account and Store Findings on S3
         run: |
           echo "📌 Running Prowler scan for Account: 924144197303"
