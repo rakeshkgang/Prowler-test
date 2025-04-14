@@ -9,7 +9,7 @@ on:
 jobs:
   prowler:
     runs-on: ubuntu-latest
-
+    permissions: write-all
     steps:
       # Step 1: Check out code from repository
       - name: Check out code
