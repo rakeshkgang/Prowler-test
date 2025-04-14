@@ -27,7 +27,7 @@ jobs:
       - name: Install Prowler Python dependencies
         run: |
           cd prowler
-          pip install alive-progress boto3
+          pip install -r requirements-full.txt
 
       - name: Run Prowler
         run: |
