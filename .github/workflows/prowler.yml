@@ -91,7 +91,6 @@
 name: Run Prowler and Upload to S3
 
 on:
-  workflow_dispatch:    # Run manually from GitHub
   push:
     branches:
       - main
@@ -112,7 +111,7 @@ jobs:
           role-to-assume: arn:aws:iam::924144197303:role/github-oidc-terraform-role-21
           aws-region: us-east-1
 
-      - name: Clone Prowler
+      - name: Clone prowler
         run: git clone https://github.com/prowler-cloud/prowler.git
 
       - name: Modify Pydantic Model to Allow Arbitrary Types
@@ -124,24 +123,26 @@ jobs:
         run: |
           pip install boto3 pydantic==1.10.21 click rich alive-progress detect-secrets tabulate py-ocsf-models slack_sdk tzlocal requests botocore s3transfer kubernetes --upgrade
 
-      - name: Run Prowler Locally
+      - name: Run Prowler locally
+        continue-on-error: true
         run: |
           cd prowler
-          python3 prowler-cli.py aws -M json-asff -S -o output
+          python3 prowler-cli.py aws -M html,csv,json-asff -S -o output
+
+          echo "✅ Local Prowler run completed (ignoring exit code)."
 
       - name: Running Security Audit on AWS and Upload
-        continue-on-error: true  # <-- Ignore non-zero exit (like exit code 3)
+        continue-on-error: true
         env:
           ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
         run: |
           echo "Running Prowler scan against AWS Account: $ACCOUNT_ID"
-
+          
+          # Create a date-based folder (optional, but very clean)
           export DATE=$(date +%F)
           export OUTPUT_DIR="/home/runner/work/prowler/prowler/output"
 
-          cd prowler
-
-          python3 prowler-cli.py aws \
+          prowler aws \
             --role arn:aws:iam::$ACCOUNT_ID:role/ProwlerExecRole \
             --output-directory "$OUTPUT_DIR" \
             --output-modes html csv json-asff \
@@ -149,18 +150,16 @@ jobs:
 
           echo "✅ AWS Prowler scan completed."
 
-          echo "Listing output directory contents:"
+          # List output contents
+          echo "Prowler output directory contents:"
           ls -l "$OUTPUT_DIR"
 
-          echo "Verifying AWS STS caller identity:"
+          echo "Verifying role assumption with AWS STS:"
           aws sts get-caller-identity
 
-          echo "Uploading findings to S3 Bucket: ${{ secrets.S3_BUCKET_NAME }} under folder: $DATE/"
+          # Upload findings to S3 under a dated folder (like /2025-04-15/)
+          echo "Uploading findings to S3 Bucket: ${{ secrets.S3_BUCKET_NAME }} under path: $DATE/"
           aws s3 cp "$OUTPUT_DIR" "s3://${{ secrets.S3_BUCKET_NAME }}/$DATE/" --recursive
 
           echo "✅ Prowler findings successfully uploaded to S3."
 
-      - name: Debug: Verify S3 Upload
-        run: |
-          echo "Listing contents of S3 bucket:"
-          aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}/
