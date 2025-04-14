@@ -21,9 +21,16 @@ jobs:
           role-to-assume: arn:aws:iam::924144197303:role/github-oidc-terraform-role-21
           aws-region: us-east-1
 
-      - name: Clone prowler
-        run: git clone https://github.com/prowler-cloud/prowler.git
-
+      # - name: Clone prowler
+      #   run: git clone https://github.com/prowler-cloud/prowler.git
+      - name: Installing Prowler Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt install zip unzip python3-pip -y
+          sudo apt remove python3-urllib3 -y
+          sudo pip install --ignore-installed prowler matplotlib pandas numpy requests slack-sdk plotly
+          prowler --version
+          ulimit -n 4096
       - name: Modify Pydantic Model to Allow Arbitrary Types
         run: |
           # Ensure the Config class with arbitrary_types_allowed=True is added
