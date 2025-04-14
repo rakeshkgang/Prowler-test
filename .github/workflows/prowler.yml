@@ -9,9 +9,8 @@ jobs:
   prowler-scan:
     runs-on: ubuntu-latest
 
-    permissions:
-      write-all:
-        - s3:PutObject
+    permissions: write-all
+        
 
     steps:
       # Checkout the latest code from the repository
