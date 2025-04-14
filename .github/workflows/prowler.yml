@@ -27,15 +27,6 @@ jobs:
           pip install prowler
           pip install "pyOpenSSL>=22.0.0" "urllib3>=1.26.0"
 
-      - name: Clone Prowler
-        run: |
-          git clone https://github.com/prowler-cloud/prowler.git
-
-      - name: Install Prowler Python Requirements
-        run: |
-          cd prowler
-          python3 -m pip install -r requirements.txt
-
       - name: Run Prowler Security Audit
         env:
           ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
