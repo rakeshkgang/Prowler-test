@@ -1,4 +1,4 @@
-name: Prowler Scan 
+name: Prowler Scan
 
 on:
   push:
@@ -7,14 +7,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  scan:
+  prowler:
     runs-on: ubuntu-latest
-    permissions: write-all
 
     steps:
+      # Step 1: Check out code from repository
       - name: Check out code
-        uses: actions/checkout@v4
-      
+        uses: actions/checkout@v3
+
+      # Step 2: Install pip and dependencies
       - name: Install pip
         run: |
           sudo apt update
@@ -25,6 +26,7 @@ jobs:
           python3 -m pip install --upgrade pip
           pip3 install prowler
 
+      # Step 3: Configure AWS Credentials (via OIDC)
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -32,28 +34,27 @@ jobs:
           role-session-name: github-actions
           aws-region: us-east-1
 
-
-      - name: Running Security Audit on AWS
+      # Step 4: Run Prowler Scan for AWS account(s)
+      - name: Running Prowler scan for Account: 924144197303
         env:
-          ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
+          ACCOUNT_ID: 924144197303
         run: |
-          for ACCOUNTID in $ACCOUNT_ID; do
-          {
-            echo $ACCOUNTID
-            prowler aws \
-              --role arn:aws:iam::$ACCOUNTID:role/ProwlerExecRole \
-              --output-directory /home/runner/work/prowler/prowler/output \
-              --output-modes html csv json-asff \
-              --ignore-exit-code-3
-          }
-          done
-          aws s3 cp /home/runner/work/prowler/prowler/output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
-           
-      - name: List Prowler Output
-        run: |
-          ls -l /home/runner/work/prowler/prowler/output
+          export MONTH_NAME=$(date +%B)
+          echo "📌 Running Prowler scan for Account: $ACCOUNT_ID"
 
-      - name: Debugging Outputs
+          prowler aws \
+            --role arn:aws:iam::$ACCOUNT_ID:role/ProwlerExecRole \
+            --output-directory /home/runner/work/prowler/prowler/output/$MONTH_NAME \
+            --output-modes html csv json-asff \
+            --ignore-exit-code-3
+
+          echo "✅ Scan completed for Account: $ACCOUNT_ID and findings sent to Security Hub!"
+
+      # Step 5: Upload findings to S3
+      - name: Upload Prowler Results to AWS S3
         run: |
-          echo "Verifying S3 bucket contents:"
-          aws s3 ls s3://prowler-t/
+          YEAR=$(date +'%Y')
+          MONTH=$(date +'%m')
+          aws s3 cp /home/runner/work/prowler/prowler/output/ s3://prowler-t/$YEAR/$MONTH/ --recursive
+
+     
