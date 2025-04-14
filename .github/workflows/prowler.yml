@@ -26,7 +26,10 @@ jobs:
 
       - name: Modify Pydantic Model to Allow Arbitrary Types
         run: |
+          # Ensure the Config class with arbitrary_types_allowed=True is added
           sed -i '/class CIS_Requirement_Attribute_Profile(BaseModel):/a \\n    class Config:\n        arbitrary_types_allowed = True' prowler/prowler/lib/check/compliance_models.py
+          # Verify the change has been applied
+          grep -A 5 'class CIS_Requirement_Attribute_Profile' prowler/prowler/lib/check/compliance_models.py
 
       - name: Install Prowler dependencies
         run: |
