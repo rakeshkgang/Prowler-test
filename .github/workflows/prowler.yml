@@ -3,34 +3,44 @@ name: Run Prowler and Upload to S3
 on:
   push:
     branches:
-      - main   # only run manually when you click "Run workflow"
+      - main  # Trigger this workflow only for changes to the main branch
 
 jobs:
   prowler-scan:
     runs-on: ubuntu-latest
 
-    permissions: write-all
+    permissions:
+      write-all:
+        - s3:PutObject
 
     steps:
+      # Checkout the latest code from the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Configure AWS credentials using OIDC
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: arn:aws:iam::924144197303:role/github-oidc-terraform-role-21
           aws-region: us-east-1
 
+      # Clone Prowler repository
       - name: Clone prowler
         run: git clone https://github.com/prowler-cloud/prowler.git
 
+      # Install dependencies for Prowler
       - name: Install Prowler dependencies
         run: |
           pip install boto3 pydantic click rich alive-progress
+
+      # Run Prowler scan and output findings
       - name: Run Prowler
         run: |
           cd prowler
           python3 prowler-cli.py aws -M json-asff -S -o output
+
+      # Upload the latest findings to S3
       - name: Upload findings to S3
         run: |
           LATEST_FILE=$(ls -t prowler/output/prowler-output-*.asff.json | head -n1)
