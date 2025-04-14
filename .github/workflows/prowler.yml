@@ -24,13 +24,9 @@ jobs:
       - name: Clone prowler
         run: git clone https://github.com/prowler-cloud/prowler.git
 
-      - name: Generate and Install Requirements
+      - name: Install Prowler dependencies
         run: |
-          cd prowler
-          pip install pip-tools
-          pip-compile requirements.in
-          pip install -r requirements.txt
-
+          pip install boto3 pydantic click rich alive-progress
       - name: Run Prowler
         run: |
           cd prowler
