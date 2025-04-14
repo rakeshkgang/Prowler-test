@@ -24,10 +24,12 @@ jobs:
       - name: Clone prowler
         run: git clone https://github.com/prowler-cloud/prowler.git
 
-      - name: Install Prowler Python dependencies
+      - name: Generate and Install Requirements
         run: |
           cd prowler
-          pip install -r requirements-full.txt
+          pip install pip-tools
+          pip-compile requirements.in
+          pip install -r requirements.txt
 
       - name: Run Prowler
         run: |
