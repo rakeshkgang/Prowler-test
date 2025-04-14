@@ -21,16 +21,9 @@ jobs:
           role-to-assume: arn:aws:iam::924144197303:role/github-oidc-terraform-role-21
           aws-region: us-east-1
 
-      # - name: Clone prowler
-      #   run: git clone https://github.com/prowler-cloud/prowler.git
-      - name: Installing Prowler Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt install zip unzip python3-pip -y
-          sudo apt remove python3-urllib3 -y
-          sudo pip install --ignore-installed prowler matplotlib pandas numpy requests slack-sdk plotly
-          prowler --version
-          ulimit -n 4096
+      - name: Clone prowler
+        run: git clone https://github.com/prowler-cloud/prowler.git
+
       - name: Modify Pydantic Model to Allow Arbitrary Types
         run: |
           # Ensure the Config class with arbitrary_types_allowed=True is added
@@ -42,55 +35,36 @@ jobs:
         run: |
           pip install boto3 pydantic==1.10.21 click rich alive-progress detect-secrets tabulate py-ocsf-models slack_sdk tzlocal requests botocore s3transfer kubernetes --upgrade
 
-      
+      - name: Run Prowler
+        run: |
+          cd prowler
+          python3 prowler-cli.py aws -M json-asff -S -o output
+
       - name: Running Security Audit on AWS
         env:
           ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
         run: |
-          for ACCOUNTID in $ACCOUNT_ID; do
-          {
-            echo $ACCOUNTID
-            prowler aws \
-              --role arn:aws:iam::$ACCOUNTID:role/ProwlerExecRole \
-              --output-directory /home/runner/work/prowler/prowler/output \
-              --output-modes html csv json-asff \
-              --ignore-exit-code-3
-          }
-          done
+          # Debug: Print the Account ID
+          echo "Account ID: $ACCOUNT_ID"
+
+          # Run Prowler scan on the AWS account
+          prowler aws \
+            --role arn:aws:iam::$ACCOUNT_ID:role/ProwlerExecRole \
+            --output-directory /home/runner/work/prowler/prowler/output \
+            --output-modes html csv json-asff \
+            --ignore-exit-code-3
+
+          # Debug: Verify output directory content
+          echo "Listing output directory contents:"
+          ls -l /home/runner/work/prowler/prowler/output
+
+          # Debug: Verify role assumption by calling AWS STS
+          echo "Verifying role assumption with AWS STS:"
+          aws sts get-caller-identity
+
+          # Upload Prowler results to S3 bucket
+          echo "Uploading results to S3"
           aws s3 cp /home/runner/work/prowler/prowler/output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
-           
-      
-      
-      # - name: Run Prowler
-      #   run: |
-      #     cd prowler
-      #     python3 prowler-cli.py aws -M json-asff -S -o output
-
-      # - name: Running Security Audit on AWS
-      #   env:
-      #     ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
-      #   run: |
-      #     # Debug: Print the Account ID
-      #     echo "Account ID: $ACCOUNT_ID"
-
-      #     # Run Prowler scan on the AWS account
-      #     prowler aws \
-      #       --role arn:aws:iam::$ACCOUNT_ID:role/ProwlerExecRole \
-      #       --output-directory /home/runner/work/prowler/prowler/output \
-      #       --output-modes html csv json-asff \
-      #       --ignore-exit-code-3
-
-      #     # Debug: Verify output directory content
-      #     echo "Listing output directory contents:"
-      #     ls -l /home/runner/work/prowler/prowler/output
-
-      #     # Debug: Verify role assumption by calling AWS STS
-      #     echo "Verifying role assumption with AWS STS:"
-      #     aws sts get-caller-identity
-
-      #     # Upload Prowler results to S3 bucket
-      #     echo "Uploading results to S3"
-      #     aws s3 cp /home/runner/work/prowler/prowler/output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
 
       # - name: List Prowler Output
       #   run: ls -l /home/runner/work/prowler/prowler/output
@@ -103,14 +77,14 @@ jobs:
       #   run: |
       #     echo "Verifying S3 bucket contents:"
       #     aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}
-      # # - name: List Prowler Output
-      # #   run: ls -l /home/runner/work/prowler/prowler/output
+      # - name: List Prowler Output
+      #   run: ls -l /home/runner/work/prowler/prowler/output
 
-      # # - name: Upload Prowler Results to S3
-      # #   run: |
-      # #     aws s3 cp /home/runner/work/prowler/prowler/output/ s3://${{ secrets.S3_BUCKET_NAME }}/ --recursive
+      # - name: Upload Prowler Results to S3
+      #   run: |
+      #     aws s3 cp /home/runner/work/prowler/prowler/output/ s3://${{ secrets.S3_BUCKET_NAME }}/ --recursive
 
-      # # - name: Debugging Outputs
-      # #   run: |
-      # #     echo "Verifying S3 bucket contents:"
-      # #     aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}
+      # - name: Debugging Outputs
+      #   run: |
+      #     echo "Verifying S3 bucket contents:"
+      #     aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}
