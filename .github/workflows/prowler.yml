@@ -38,9 +38,10 @@ jobs:
           # Disable the dashboard import
           sed -i 's/from dashboard.lib.arguments.arguments import init_dashboard_parser/# from dashboard.lib.arguments.arguments import init_dashboard_parser/' prowler/lib/cli/parser.py
 
-          # Install the necessary dependencies
+          # Install required dependencies manually
           python3 -m pip install --upgrade pip
-          pip3 install -r requirements.txt
+          pip3 install matplotlib pandas numpy requests slack-sdk plotly boto3 awsipranges pyOpenSSL
+
 
       - name: Run Prowler Scan for Single Account and Store Findings on S3
         run: |
