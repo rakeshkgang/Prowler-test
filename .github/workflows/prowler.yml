@@ -1,100 +1,59 @@
-name: Prowler Security Scan
+name: Prowler Scan
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
-
+      
 jobs:
-  prowler:
-    runs-on: ubuntu-22.04
+  scan:
+    runs-on: ubuntu-latest
+    permissions: write-all
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
+      - name: Check out code
+        uses: actions/checkout@v4
 
-      - name: Clean Environment
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions
+          aws-region: us-east-1
+         
+      - name: Installing Prowler Dependencies
         run: |
-          pip uninstall -y prowler boto3 botocore cryptography pyOpenSSL urllib3 || true
-
-      - name: Install Prowler and Dependencies
+          sudo apt-get update
+          sudo apt install zip unzip python3-pip -y
+          sudo apt remove python3-urllib3 -y
+          sudo pip install --ignore-installed prowler matplotlib pandas numpy requests slack-sdk plotly
+          prowler --version
+          ulimit -n 4096
+        
+      - name: Running Security Audit on AWS
+        env:
+          ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
         run: |
-          pip install --upgrade pip
-          pip install prowler
-          pip install "pyOpenSSL>=22.0.0" "urllib3>=1.26.0"
-
-      - name: Configure AWS Credentials
-        run: |
-          aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
-          aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-          aws configure set aws_session_token "${{ secrets.AWS_SESSION_TOKEN }}"
-
-      - name: Run Prowler JSON Scan
-        id: prowler_json_scan
-        run: |
-          set -e
-          report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
-          report_file_json="${report_prefix}.ocsf.json"
-          report_file_csv="${report_prefix}.csv"
-          error_file="error_json.log"
-
-          echo "Running Prowler JSON checks..."
-
-          if timeout 1200 prowler aws -c all --output-formats json-ocsf --output-filename "$report_prefix" --verbose > "$error_file" 2>&1; then
-            echo "JSON report created successfully."
-          else
-            echo "JSON checks failed. See error log for details:" | tee -a "$error_file"
-            cat "$error_file"
-            exit 1
-          fi
-
-      - name: Run Prowler CSV Scan
-        id: prowler_csv_scan
-        run: |
-          set -e
-          report_prefix="prowler-output-$(date +%Y%m%d%H%M%S)"
-          report_file_csv="${report_prefix}.csv"
-          error_file="error_csv.log"
-
-          echo "Running Prowler CSV checks..."
-
-          if timeout 2400 prowler aws -c all --output-formats csv --output-filename "$report_prefix" --verbose > "$error_file" 2>&1; then
-            echo "CSV report created successfully."
-          else
-            echo "CSV checks failed. See error log for details:" | tee -a "$error_file"
-            cat "$error_file"
-            exit 1
-          fi
-
-      - name: Show Error Log
-        if: failure()
-        run: |
-          echo "Error Log Contents:"
-          if [[ -f error_json.log ]]; then
-            cat error_json.log
-          fi
-          if [[ -f error_csv.log ]]; then
-            cat error_csv.log
-          fi
-
-      - name: Send Reports to Slack
-        run: |
-          echo "Sending reports to Slack..."
-
-          report_summary=$(cat error_json.log || echo "No errors in JSON scan.")
-          report_summary+=$'\n\n'
-          report_summary+=$(cat error_csv.log || echo "No errors in CSV scan.")
-
-          payload=$(jq -n --arg text "$report_summary" '{text: $text}')
-          webhook_url="${{ secrets.SLACK_WEBHOOK_URL }}"
-
-          # Send the report summary to Slack
-          curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$webhook_url"
-
-          # Attach report files if they exist
-          for file in prowler-output-*.ocsf.json prowler-output-*.csv; do
-            if [[ -f "$file" ]]; then
-              curl -F file=@${file} -F "initial_comment=Here is the Prowler report: $file" -F channels=${{ secrets.SLACK_CHANNEL_ID }} "$webhook_url"
-            fi
+          for ACCOUNTID in $ACCOUNT_ID; do
+          {
+            echo $ACCOUNTID
+            prowler aws \
+              --role arn:aws:iam::$ACCOUNTID:role/ProwlerExecRole \
+              --output-directory /home/runner/work/prowler/prowler/output \
+              --output-modes html csv json-asff \
+              --ignore-exit-code-3
+          }
           done
+          aws s3 cp /home/runner/work/prowler/prowler/output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
+           
+      - name: List Prowler Output
+        run: ls -l /home/runner/work/prowler/prowler/output
+
+      - name: Upload Prowler Results to S3
+        run: |
+          aws s3 cp /home/runner/work/prowler/prowler/output/ s3://${{ secrets.S3_BUCKET_NAME }}/ --recursive
+
+      - name: Debugging Outputs
+        run: |
+          echo "Verifying S3 bucket contents:"
+          aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}/
