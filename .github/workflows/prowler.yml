@@ -22,15 +22,22 @@ jobs:
           role-session-name: github-actions
           aws-region: us-east-1
 
-      - name: Installing Prowler Dependencies
+      - name: Set up Python environment and install Prowler dependencies
         run: |
+          # Install necessary system packages
           sudo apt-get update
-          sudo apt install zip unzip python3-pip -y
-          sudo apt remove python3-urllib3 -y
-          sudo pip install --ignore-installed prowler matplotlib pandas numpy requests slack-sdk plotly
-          # Skipping the dashboard dependency issue by using only essential packages
+          sudo apt-get install -y zip unzip python3-pip git
+
+          # Create a virtual environment to isolate packages
+          python3 -m venv prowler-env
+          source prowler-env/bin/activate
+
+          # Install Prowler and its dependencies, skip dashboard
+          pip install --upgrade pip
+          pip install prowler matplotlib pandas numpy requests slack-sdk plotly
+
+          # Verify the installed version of Prowler
           prowler --version
-          ulimit -n 4096
 
       - name: Run Prowler Scan for Single Account and Store Findings on S3
         run: |
