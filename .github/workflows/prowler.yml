@@ -188,14 +188,24 @@ jobs:
           role-to-assume: arn:aws:iam::924144197303:role/github-oidc-terraform-role-21
           aws-region: us-east-1
 
-      - name: Install Prowler via pip
+      - name: Install Prowler dependencies
         run: |
-          pip install prowler-cloud prowler-cli
+          pip install boto3 pydantic==1.10.21 click rich alive-progress detect-secrets tabulate py-ocsf-models slack_sdk tzlocal requests botocore s3transfer kubernetes --upgrade
+
+      - name: Clone Prowler
+        run: |
+          git clone https://github.com/prowler-cloud/prowler.git
+
+      - name: Patch Prowler (Allow Arbitrary Types)
+        run: |
+          sed -i '/class CIS_Requirement_Attribute_Profile(BaseModel):/a \\n    class Config:\n        arbitrary_types_allowed = True' prowler/prowler/lib/check/compliance_models.py
+          grep -A 5 'class CIS_Requirement_Attribute_Profile' prowler/prowler/lib/check/compliance_models.py
 
       - name: Run Prowler locally (Test)
         continue-on-error: true
         run: |
-          prowler aws -M html,csv,json-asff -S -o output
+          cd prowler
+          python3 prowler-cli.py aws -M html,csv,json-asff -S -o output
           echo "✅ Local Prowler run completed (ignoring exit code)."
 
       - name: Running Security Audit on AWS and Upload
@@ -206,13 +216,14 @@ jobs:
         run: |
           echo "Running Prowler scan against AWS Account: $ACCOUNT_ID"
 
+          cd prowler
           export DATE=$(date +%F)
           export OUTPUT_DIR="output"
 
-          prowler aws \
+          python3 prowler-cli.py aws \
             --role arn:aws:iam::$ACCOUNT_ID:role/ProwlerExecRole \
             --output-directory "$OUTPUT_DIR" \
-            --output-modes html,csv,json-asff \
+            --output-modes html csv json-asff \
             --ignore-exit-code-3
 
           echo "✅ AWS Prowler scan completed."
