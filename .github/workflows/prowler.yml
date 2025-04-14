@@ -1,15 +1,15 @@
 name: Run Prowler and Upload to S3
 
 on:
-  workflow_dispatch:  # only run manually when you click "Run workflow"
+  push:
+    branches:
+      - main   # only run manually when you click "Run workflow"
 
 jobs:
   prowler-scan:
     runs-on: ubuntu-latest
 
-    permissions:
-      id-token: write
-      contents: read
+    permissions: write-all
 
     steps:
       - name: Checkout repository
