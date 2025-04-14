@@ -33,7 +33,7 @@ jobs:
 
       - name: Install Prowler dependencies
         run: |
-          pip install boto3 pydantic==1.10.21 click rich alive-progress detect-secrets tabulate py-ocsf-models slack_sdk tzlocal requests botocore s3transfer --upgrade
+          pip install boto3 pydantic==1.10.21 click rich alive-progress detect-secrets tabulate py-ocsf-models slack_sdk tzlocal requests botocore s3transfer kubernetes --upgrade
 
       - name: Run Prowler
         run: |
