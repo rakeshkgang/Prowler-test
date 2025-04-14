@@ -46,8 +46,8 @@ jobs:
       - name: Run Prowler Scan for Single Account and Store Findings on S3
         run: |
           echo "📌 Running Prowler scan for Account: 924144197303"
-
-          prowler aws \
+          cd prowler
+          python3 prowler aws \
             --role arn:aws:iam::924144197303:role/ProwlerExecRole \
             --output-formats json-asff \
             --security-hub \
