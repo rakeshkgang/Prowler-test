@@ -47,7 +47,7 @@ jobs:
         run: |
           echo "📌 Running Prowler scan for Account: 924144197303"
           cd prowler
-          python3 prowler.aws \
+          python3 prowler.py aws \
             --role arn:aws:iam::924144197303:role/ProwlerExecRole \
             --output-formats json-asff \
             --security-hub \
