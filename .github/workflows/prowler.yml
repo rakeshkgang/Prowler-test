@@ -21,19 +21,18 @@ jobs:
           role-to-assume: arn:aws:iam::924144197303:role/github-oidc-terraform-role-21
           aws-region: us-east-1
 
-      - name: Install Prowler dependencies
+      - name: Clone prowler
+        run: git clone https://github.com/prowler-cloud/prowler.git
+
+      - name: Install Prowler Python dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-pip
-          pip install boto3
+          cd prowler
+          pip install alive-progress boto3
 
       - name: Run Prowler
         run: |
-          git clone https://github.com/prowler-cloud/prowler.git
           cd prowler
-          pip install -r requirements.txt   # <--- 🔥 NEW STEP
           python3 prowler-cli.py aws -M json-asff -S -o output
-
       - name: Upload findings to S3
         run: |
           LATEST_FILE=$(ls -t prowler/output/prowler-output-*.asff.json | head -n1)
