@@ -22,25 +22,13 @@ jobs:
           role-session-name: github-actions
           aws-region: us-east-1
 
-      - name: Install pip
+      - name: Install Prowler
         run: |
-          sudo apt update
-          sudo apt install -y python3 python3-pip
-
-      - name: Clone Prowler repository and disable dashboard dependency
-        run: |
-          # Clone Prowler repository
-          git clone https://github.com/prowler-cloud/prowler.git
-
-          # Go to Prowler directory
+          sudo apt-get update
+          sudo apt-get install -y git
+          git clone https://github.com/tonal/prowler.git
           cd prowler
-
-          # Disable the dashboard import
-          sed -i 's/from dashboard.lib.arguments.arguments import init_dashboard_parser/# from dashboard.lib.arguments.arguments import init_dashboard_parser/' prowler/lib/cli/parser.py
-
-          # Install required dependencies manually
-          python3 -m pip install --upgrade pip
-          pip3 install matplotlib pandas numpy requests slack-sdk plotly boto3 awsipranges pyOpenSSL
+          ./install.sh
 
 
       - name: Run Prowler Scan for Single Account and Store Findings on S3
