@@ -41,7 +41,7 @@ jobs:
           pip install prowler matplotlib pandas numpy requests slack-sdk plotly
 
           # Verify Prowler version
-          ./prowler --version
+          python3 prowler.py --version
       - name: Run Prowler Scan for Single Account and Store Findings on S3
         run: |
           echo "📌 Running Prowler scan for Account: 924144197303"
