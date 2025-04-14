@@ -1,9 +1,10 @@
-name: Prowler Scan
+name: Prowler Scan 
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   scan:
@@ -17,42 +18,39 @@ jobs:
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::924144197303:role/github-oidc-terraform-role-21
           role-session-name: github-actions
           aws-region: us-east-1
 
-      - name: Install Prowler and Dependencies
+      - name: Installing Prowler Dependencies
         run: |
-          pip install --upgrade pip
-          pip install prowler
-          pip install "pyOpenSSL>=22.0.0" "urllib3>=1.26.0"
-
-      - name: Run Prowler Security Audit
-        env:
-          ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
-        run: |
+          sudo apt-get update
+          sudo apt install zip unzip python3-pip -y
+          sudo apt remove python3-urllib3 -y
+          sudo pip install --ignore-installed prowler matplotlib pandas numpy requests slack-sdk plotly
+          prowler --version
           ulimit -n 4096
-          mkdir -p output
-          for ACCOUNTID in $ACCOUNT_ID; do
-          {
-            echo "Scanning account: $ACCOUNTID"
-            prowler aws \
-              --role arn:aws:iam::$ACCOUNTID:role/ProwlerExecRole \
-              --output-directory ./output \
-              --output-modes html csv json-asff \
-              --ignore-exit-code-3
-          }
-          done
+
+      - name: Run Prowler Scan for Single Account and Store Findings on S3
+        run: |
+          echo "📌 Running Prowler scan for Account: 924144197303"
+
+          prowler aws \
+            --role arn:aws:iam::924144197303:role/ProwlerExecRole \
+            --output-formats json-asff \
+            --security-hub \
+            --ignore-exit-code-3
+
+          echo "✅ Scan completed for Account: 924144197303 and findings sent to Security Hub!"
+          
+          # Upload findings to S3
+          aws s3 cp /home/runner/work/prowler/prowler/output/ "s3://prowler-t/" --recursive
 
       - name: List Prowler Output
         run: |
-          ls -l ./output
-
-      - name: Upload Prowler Results to S3
-        run: |
-          aws s3 cp ./output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
+          ls -l /home/runner/work/prowler/prowler/output
 
       - name: Debugging Outputs
         run: |
           echo "Verifying S3 bucket contents:"
-          aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}/
+          aws s3 ls s3://prowler-t/
