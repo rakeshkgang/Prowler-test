@@ -1,58 +1,44 @@
-name: Prowler Scan
+name: Run Prowler and Upload to S3
 
 on:
-  push:
-    branches:
-      - main      
+  workflow_dispatch:  # only run manually when you click "Run workflow"
+
 jobs:
-  scan:
+  prowler-scan:
     runs-on: ubuntu-latest
-    permissions: write-all
+
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
-      - name: Check out code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials with OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-session-name: github-actions
+          role-to-assume: arn:aws:iam::924144197303:role/github-oidc-terraform-role-21
           aws-region: us-east-1
-         
-      - name: Installing Prowler Dependencies
+
+      - name: Install Prowler dependencies
         run: |
           sudo apt-get update
-          sudo apt install zip unzip python3-pip -y
-          sudo apt remove python3-urllib3 -y
-          sudo pip install --ignore-installed prowler matplotlib pandas numpy requests slack-sdk plotly
-          prowler --version
-          ulimit -n 4096
-        
-      - name: Running Security Audit on AWS
-        env:
-          ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
-        run: |
-          for ACCOUNTID in $ACCOUNT_ID; do
-          {
-            echo $ACCOUNTID
-            prowler aws \
-              --role arn:aws:iam::$ACCOUNTID:role/ProwlerExecRole \
-              --output-directory /home/runner/work/prowler/prowler/output \
-              --output-modes html csv json-asff \
-              --ignore-exit-code-3
-          }
-          done
-          aws s3 cp /home/runner/work/prowler/prowler/output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
-           
-      - name: List Prowler Output
-        run: ls -l /home/runner/work/prowler/prowler/output
-          
-      - name: Upload Prowler Results to S3
-        run: |
-          aws s3 cp /home/runner/work/prowler/prowler/output/ s3://${{ secrets.S3_BUCKET_NAME }}/ --recursive
+          sudo apt-get install -y python3-pip
+          pip install boto3
 
-      - name: Debugging Outputs
+      - name: Run Prowler
         run: |
-          echo "Verifying S3 bucket contents:"
-          aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}/
+          git clone https://github.com/prowler-cloud/prowler.git
+          cd prowler
+          python3 prowler-cli.py aws -M json-asff -S -o output
+
+      - name: Upload findings to S3
+        run: |
+          LATEST_FILE=$(ls -t prowler/output/prowler-output-*.asff.json | head -n1)
+          if [ -f "$LATEST_FILE" ]; then
+            aws s3 cp "$LATEST_FILE" "s3://prowler-t/prowler-raw-reports/"
+          else
+            echo "❌ No Prowler output file found!"
+            exit 1
+          fi
