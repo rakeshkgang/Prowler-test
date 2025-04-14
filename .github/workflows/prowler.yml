@@ -22,6 +22,11 @@ jobs:
           role-session-name: github-actions
           aws-region: us-east-1
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip unzip python3-pip git
+
       - name: Clone Prowler repository and remove dashboard dependency
         run: |
           # Clone the Prowler repository
@@ -31,13 +36,12 @@ jobs:
           # Remove the dashboard import statement
           sed -i '/from dashboard.lib.arguments.arguments import init_dashboard_parser/d' prowler/lib/cli/parser.py
 
-          # Install required dependencies
+          # Install required dependencies directly
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install prowler matplotlib pandas numpy requests slack-sdk plotly
 
           # Verify Prowler version
           ./prowler --version
-
       - name: Run Prowler Scan for Single Account and Store Findings on S3
         run: |
           echo "📌 Running Prowler scan for Account: 924144197303"
