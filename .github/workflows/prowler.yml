@@ -3,67 +3,56 @@ name: Prowler Scan
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:
-
+      - main      
 jobs:
-  prowler:
+  scan:
     runs-on: ubuntu-latest
     permissions: write-all
+
     steps:
-      # Step 1: Check out code from repository
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # Step 2: Install pip and dependencies
-      - name: Install pip
-        run: |
-          sudo apt update
-          sudo apt install -y python3 python3-pip
-
-      - name: Install Prowler
-        run: |
-          python3 -m pip install --upgrade pip
-          pip3 install prowler
-
-      # Step 3: Configure AWS Credentials (via OIDC)
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::924144197303:role/github-oidc-terraform-role-21
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: github-actions
           aws-region: us-east-1
-
-      # Step 4: Run Prowler Scan for AWS account(s)
-      - name: Running Prowler scan for Account 924144197303
+         
+      - name: Installing Prowler Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt install zip unzip python3-pip -y
+          sudo apt remove python3-urllib3 -y
+          sudo pip install --ignore-installed prowler matplotlib pandas numpy requests slack-sdk plotly
+          prowler --version
+          ulimit -n 4096
+        
+      - name: Running Security Audit on AWS
         env:
-          ACCOUNT_ID: 924144197303
+          ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
         run: |
-          export MONTH_NAME=$(date +%B)
-          echo "📌 Running Prowler scan for Account: $ACCOUNT_ID"
-
-          prowler aws \
-            --role arn:aws:iam::$ACCOUNT_ID:role/ProwlerExecRole \
-            --output-directory /home/runner/work/prowler/prowler/output/$MONTH_NAME \
-            --output-modes html csv json-asff \
-            --ignore-exit-code-3
-
-          echo "✅ Scan completed for Account: $ACCOUNT_ID and findings sent to Security Hub!"
-
-      # Step 5: Upload findings to S3
-      - name: Upload Prowler Results to AWS S3
+          for ACCOUNTID in $ACCOUNT_ID; do
+          {
+            echo $ACCOUNTID
+            prowler aws \
+              --role arn:aws:iam::$ACCOUNTID:role/ProwlerExecRole \
+              --output-directory /home/runner/work/prowler/prowler/output \
+              --output-modes html csv json-asff \
+              --ignore-exit-code-3
+          }
+          done
+          aws s3 cp /home/runner/work/prowler/prowler/output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
+           
+      - name: List Prowler Output
+        run: ls -l /home/runner/work/prowler/prowler/output
+          
+      - name: Upload Prowler Results to S3
         run: |
-          YEAR=$(date +'%Y')
-          MONTH=$(date +'%m')
-          aws s3 cp /home/runner/work/prowler/prowler/output/ s3://prowler-t/$YEAR/$MONTH/ --recursive
+          aws s3 cp /home/runner/work/prowler/prowler/output/ s3://${{ secrets.S3_BUCKET_NAME }}/ --recursive
 
-      # # Step 6: Notify Slack (optional)
-      # - name: Notify Slack
-      #   uses: clouddrove/action-slack-notify@1
-      #   if: ${{ success() }}  # Corrected to ensure it's a proper expression
-      #   env:
-      #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      #     SLACK_MESSAGE: "Prowler scan completed successfully for account $ACCOUNT_ID!"
-      #     SLACK_ENV: "Production"
-      #     SLACK_USERNAME: ${{ secrets.SLACK_USERNAME }}
-      #     SLACK_COLOR: "good"
+      - name: Debugging Outputs
+        run: |
+          echo "Verifying S3 bucket contents:"
+          aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}/
