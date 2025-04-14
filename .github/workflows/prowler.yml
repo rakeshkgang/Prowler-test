@@ -44,20 +44,17 @@ jobs:
         env:
           ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
         run: |
-          for ACCOUNTID in $ACCOUNT_ID; do
-          {
-            echo $ACCOUNTID
-            prowler aws \
-              --role arn:aws:iam::$ACCOUNTID:role/ProwlerExecRole \
-              --output-directory /home/runner/work/prowler/prowler/output \
-              --output-modes html csv json-asff \
-              --ignore-exit-code-3
-          }
-          done
+          echo $ACCOUNT_ID
+          prowler aws \
+            --role arn:aws:iam::$ACCOUNT_ID:role/ProwlerExecRole \
+            --output-directory /home/runner/work/prowler/prowler/output \
+            --output-modes html csv json-asff \
+            --ignore-exit-code-3
           aws s3 cp /home/runner/work/prowler/prowler/output/ "s3://${{ secrets.S3_BUCKET_NAME }}/" --recursive
+          
       - name: List Prowler Output
         run: ls -l /home/runner/work/prowler/prowler/output
-          
+
       - name: Upload Prowler Results to S3
         run: |
           aws s3 cp /home/runner/work/prowler/prowler/output/ s3://${{ secrets.S3_BUCKET_NAME }}/ --recursive
@@ -65,4 +62,4 @@ jobs:
       - name: Debugging Outputs
         run: |
           echo "Verifying S3 bucket contents:"
-          aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}     
+          aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}
