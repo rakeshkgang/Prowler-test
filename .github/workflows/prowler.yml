@@ -35,7 +35,7 @@ jobs:
           aws-region: us-east-1
 
       # Step 4: Run Prowler Scan for AWS account(s)
-      - name: Running Prowler scan for Account: 924144197303
+      - name: Running Prowler scan for Account 924144197303
         env:
           ACCOUNT_ID: 924144197303
         run: |
