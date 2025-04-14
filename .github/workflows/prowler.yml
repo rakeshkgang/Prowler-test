@@ -31,6 +31,7 @@ jobs:
         run: |
           git clone https://github.com/prowler-cloud/prowler.git
           cd prowler
+          pip install -r requirements.txt   # <--- 🔥 NEW STEP
           python3 prowler-cli.py aws -M json-asff -S -o output
 
       - name: Upload findings to S3
