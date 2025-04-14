@@ -33,7 +33,7 @@ jobs:
 
       - name: Install Prowler dependencies
         run: |
-          pip install boto3 pydantic==1.10.2 click rich alive-progress
+          pip install boto3 pydantic==1.10.2 click rich alive-progress detect-secrets
 
       - name: Run Prowler
         run: |
