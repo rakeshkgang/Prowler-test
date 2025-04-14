@@ -28,7 +28,7 @@ jobs:
           sudo apt install zip unzip python3-pip -y
           sudo apt remove python3-urllib3 -y
           sudo pip install --ignore-installed prowler matplotlib pandas numpy requests slack-sdk plotly
-          sudo pip install prowler-dashboard
+          # Skipping the dashboard dependency issue by using only essential packages
           prowler --version
           ulimit -n 4096
 
