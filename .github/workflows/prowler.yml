@@ -205,7 +205,7 @@ jobs:
         continue-on-error: true
         run: |
           cd prowler
-          python3 prowler-cli.py aws -M html,csv,json-asff -S -o output
+          python3 prowler-cli.py aws -M html -M csv -M json-asff -S -o output
           echo "✅ Local Prowler run completed (ignoring exit code)."
 
       - name: Running Security Audit on AWS and Upload
@@ -223,7 +223,7 @@ jobs:
           python3 prowler-cli.py aws \
             --role arn:aws:iam::$ACCOUNT_ID:role/ProwlerExecRole \
             --output-directory "$OUTPUT_DIR" \
-            --output-modes html csv json-asff \
+            --output-modes html --output-modes csv --output-modes json-asff \
             --ignore-exit-code-3
 
           echo "✅ AWS Prowler scan completed."
